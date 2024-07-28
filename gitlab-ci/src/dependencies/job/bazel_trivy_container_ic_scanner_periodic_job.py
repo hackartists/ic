@@ -12,7 +12,7 @@ from scanner.manager.bazel_trivy_dependency_manager import BazelTrivyContainer
 from scanner.scanner_job_type import ScannerJobType
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.WARNING)
+    logging.basicConfig(level=logging.DEBUG)
     scanner_job = ScannerJobType.PERIODIC_SCAN
     notify_on_scan_job_succeeded, notify_on_scan_job_failed = {}, {}
     for job_type in ScannerJobType:
