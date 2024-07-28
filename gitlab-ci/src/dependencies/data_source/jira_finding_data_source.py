@@ -5,13 +5,14 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from data_source.commit_type import CommitType
-from data_source.finding_data_source import FindingDataSource
-from data_source.finding_data_source_subscriber import FindingDataSourceSubscriber
 from jira import JIRA, Comment, Issue
 from jira import User as JiraUser
 from jira.client import ResultList
 from jira.resources import CustomFieldOption
+
+from data_source.commit_type import CommitType
+from data_source.finding_data_source import FindingDataSource
+from data_source.finding_data_source_subscriber import FindingDataSourceSubscriber
 from model.dependency import Dependency
 from model.finding import Finding
 from model.security_risk import SecurityRisk
@@ -57,19 +58,20 @@ JIRA_SECURITY_RISK_TO_ID = {
     SecurityRisk.CRITICAL: "10594",
 }
 JIRA_OWNER_GROUP_BY_TEAM = {
-    Team.NODE_TEAM : {"name": "dept-Node"},
-    Team.BOUNDARY_NODE_TEAM : {"name": "dept-Boundary Nodes"},
-    Team.TRUST_TEAM : {"name": "dept-Trust"},
-    Team.GIX_TEAM : {"name": "dept-GIX"},
-    Team.SDK_TEAM : {"name": "dept-SDK"},
-    Team.FINANCIAL_INTEGRATIONS_TEAM : {"name": "dept-Financial Integrations"},
-    Team.EXECUTION_TEAM : {"name": "dept-Execution"},
-    Team.NNS_TEAM : {"name": "dept-NNS"},
-    Team.CRYPTO_TEAM : {"name": "dept-Crypto Library"},
+    Team.NODE_TEAM: {"name": "dept-Node"},
+    Team.BOUNDARY_NODE_TEAM: {"name": "dept-Boundary Nodes"},
+    Team.TRUST_TEAM: {"name": "dept-Trust"},
+    Team.GIX_TEAM: {"name": "dept-GIX"},
+    Team.SDK_TEAM: {"name": "dept-SDK"},
+    Team.FINANCIAL_INTEGRATIONS_TEAM: {"name": "dept-Financial Integrations"},
+    Team.EXECUTION_TEAM: {"name": "dept-Execution"},
+    Team.NNS_TEAM: {"name": "dept-NNS"},
+    Team.CRYPTO_TEAM: {"name": "dept-Crypto Library"},
 }
 JIRA_LABEL_PATCH_VULNDEP_PUBLISHED = "patch_published_vulndep"
 JIRA_LABEL_PATCH_ALLDEP_PUBLISHED = "patch_published_alldep"
 JIRA_VULNERABILITY_TABLE_RISK_NOTE_MIGRATION_LABEL = "MIGRATE_ME"
+
 
 class JiraFindingDataSource(FindingDataSource):
     jira: JIRA
@@ -427,7 +429,7 @@ class JiraFindingDataSource(FindingDataSource):
                 "summary"
             ] = f"[{finding_new.repository}][{finding_new.scanner}] Vulnerability in {finding_new.vulnerable_dependency.name} {finding_new.vulnerable_dependency.version}"[
                 :100
-            ]
+                ]
         all_deps: List[Dependency] = [finding_new.vulnerable_dependency] + finding_new.first_level_dependencies
         if dep_update_needed:
             res[
@@ -558,7 +560,7 @@ class JiraFindingDataSource(FindingDataSource):
     ) -> List[Finding]:
         cache_key = (repository, scanner, dependency_id)
         if cache_key in self.deleted_findings_cached:
-            return deepcopy(list(map(lambda x:x[0], self.deleted_findings_cached[cache_key])))
+            return deepcopy(list(map(lambda x: x[0], self.deleted_findings_cached[cache_key])))
 
         logging.debug(f"get_deleted_findings({repository}, {scanner}, {dependency_id})")
         jql_query: str = (
@@ -579,7 +581,7 @@ class JiraFindingDataSource(FindingDataSource):
             if finding.repository == repository and finding.scanner == scanner and finding.vulnerable_dependency.id == dependency_id:
                 result.append((finding, issue))
         self.deleted_findings_cached[cache_key] = result
-        return deepcopy(list(map(lambda x:x[0], result)))
+        return deepcopy(list(map(lambda x: x[0], result)))
 
     def commit_has_block_exception(self, commit_type: CommitType, commit_hash: str) -> bool:
         logging.debug(f"commit_has_block_exception({commit_type}, {commit_hash})")
@@ -606,11 +608,12 @@ class JiraFindingDataSource(FindingDataSource):
                     logging.warning(f"field {field_name} in finding {finding.id()} exceeds character limit with {len(field_value)} characters")
                     does_exceed = True
             except TypeError:
-                pass # some types don't have a length
+                pass  # some types don't have a length
 
         return does_exceed
 
     def create_or_update_open_finding(self, finding: Finding):
+        return
         logging.debug(f"create_or_update_open_finding({finding})")
         self.__load_findings_for_scanner(finding.scanner)
         finding_new: Finding = deepcopy(finding)
@@ -647,6 +650,7 @@ class JiraFindingDataSource(FindingDataSource):
                     sub.on_finding_created(deepcopy(finding))
 
     def delete_finding(self, finding: Finding):
+        return
         logging.debug(f"delete_finding({finding})")
         self.__load_findings_for_scanner(finding.scanner)
 
@@ -657,6 +661,7 @@ class JiraFindingDataSource(FindingDataSource):
                 sub.on_finding_deleted(finding_stored)
 
     def link_findings(self, finding_a: Finding, finding_b: Finding):
+        return
         logging.debug(f"link_findings({finding_a}, {finding_b})")
 
         # finding_a might be a deleted finding or an existing finding
@@ -674,7 +679,6 @@ class JiraFindingDataSource(FindingDataSource):
         if jira_issue_a and finding_b.id() in self.findings:
             _, jira_issue_b = self.findings[finding_b.id()]
             self.jira.create_issue_link(type="Relates", inwardIssue=jira_issue_a.key, outwardIssue=jira_issue_b.key)
-
 
     def get_risk_assessor(self) -> List[User]:
         logging.debug("get_risk_assessor()")
