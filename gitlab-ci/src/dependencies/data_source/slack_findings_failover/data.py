@@ -7,7 +7,7 @@ from model.finding import Finding
 VULNERABILITY_HEADER = "Vulnerability Info"
 VULNERABILITY_MSG_AUTHOR = "U047BLM1V42"
 VULNERABILITY_MSG_FIXED_REACTION = "fixed"
-VULNERABILITY_THRESHOLD_SCORE = 7
+VULNERABILITY_THRESHOLD_SCORE = 8
 
 
 class SlackVulnerabilityEventType(Enum):
@@ -16,8 +16,6 @@ class SlackVulnerabilityEventType(Enum):
     VULN_CHANGED = 3
     DEP_ADDED = 4
     DEP_REMOVED = 5
-    PROJ_ADDED = 6
-    PROJ_REMOVED = 7
 
 
 @dataclass
