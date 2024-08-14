@@ -134,6 +134,7 @@ async fn test_async(env: TestEnv, config: Config) {
         nodes.take(allowed_failures),
     )
     .await;
+    tokio::time::sleep(Duration::from_secs(3600)).await;
 }
 
 pub async fn rejoin_test_large_state(
