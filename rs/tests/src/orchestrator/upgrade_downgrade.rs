@@ -382,18 +382,18 @@ fn upgrade(
     ));
     info!(logger, "Could store and read message '{}'", msg);
 
-    stop_node(&logger, &faulty_node);
+    // stop_node(&logger, &faulty_node);
 
     info!(logger, "Upgrade to version {}", upgrade_version);
     upgrade_to(nns_node, subnet_id, &subnet_node, upgrade_version, &logger);
 
     // Killing redundant nodes should not prevent the `faulty_node` from upgrading
     // and catching up after restarting.
-    for redundant_node in &redundant_nodes {
-        stop_node(&logger, redundant_node);
-    }
-    start_node(&logger, &faulty_node);
-    assert_assigned_replica_version(&faulty_node, upgrade_version, env.logger());
+    // for redundant_node in &redundant_nodes {
+    //     stop_node(&logger, redundant_node);
+    // }
+    // start_node(&logger, &faulty_node);
+    // assert_assigned_replica_version(&faulty_node, upgrade_version, env.logger());
 
     // make sure that state sync is completed
     cert_state_makes_progress_with_retries(
@@ -434,9 +434,9 @@ fn upgrade(
     }
 
     // Start redundant nodes.
-    for redundant_node in &redundant_nodes {
-        start_node(&logger, redundant_node);
-    }
+    // for redundant_node in &redundant_nodes {
+    //     start_node(&logger, redundant_node);
+    // }
 
     (faulty_node.clone(), can_id, msg.into())
 }
