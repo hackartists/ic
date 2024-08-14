@@ -115,6 +115,7 @@ pub fn upgrade_downgrade_nns_subnet(env: TestEnv) {
         &msg,
         /*retries=*/ 3
     ));
+    std::thread::sleep(Duration::from_secs(3600));
 }
 
 // Tests an upgrade of the app subnet to the branch version and a downgrade back to the mainnet version
@@ -179,6 +180,7 @@ pub fn upgrade_downgrade_app_subnet(env: TestEnv) {
         &msg,
         /*retries=*/ 3
     ));
+    std::thread::sleep(Duration::from_secs(3600));
 }
 
 // Tests a downgrade of the app subnet to the mainnet version
@@ -201,6 +203,7 @@ pub fn downgrade_app_subnet(env: TestEnv) {
         SubnetType::Application,
         Some(&ecdsa_state),
     );
+    std::thread::sleep(Duration::from_secs(3600));
 }
 
 // Tests an upgrade of the app subnet to the branch version
@@ -223,6 +226,7 @@ pub fn upgrade_app_subnet(env: TestEnv) {
         SubnetType::Application,
         Some(&ecdsa_state),
     );
+    std::thread::sleep(Duration::from_secs(3600));
 }
 
 async fn start_workload(subnet: SubnetSnapshot, requests: Vec<ChainSignatureRequest>, log: Logger) {
