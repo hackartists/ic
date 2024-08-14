@@ -48,6 +48,7 @@ use slog::{info, Logger};
 use std::collections::BTreeMap;
 use std::time::Duration;
 use tokio::runtime::{Builder, Runtime};
+use ic_system_test_driver::driver::prometheus_vm::{HasPrometheus, PrometheusVm};
 
 const DKG_INTERVAL: u64 = 9;
 
@@ -62,6 +63,9 @@ pub const UP_DOWNGRADE_PER_TEST_TIMEOUT: Duration = Duration::from_secs(20 * 60)
 
 pub fn config(env: TestEnv, subnet_type: SubnetType, mainnet_version: bool) {
     let mut ic = InternetComputer::new();
+    PrometheusVm::default()
+        .start(&env)
+        .expect("failed to start prometheus VM");
     if mainnet_version {
         ic = ic.with_mainnet_config();
     }
@@ -92,6 +96,7 @@ pub fn config(env: TestEnv, subnet_type: SubnetType, mainnet_version: bool) {
         .expect("failed to setup IC under test");
 
     install_nns_and_check_progress(env.topology_snapshot());
+    env.sync_with_prometheus();
 }
 
 // Tests an upgrade of the NNS subnet to the branch version and a downgrade back to the mainnet version
