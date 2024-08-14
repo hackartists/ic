@@ -52,7 +52,7 @@ use ic_system_test_driver::driver::prometheus_vm::{HasPrometheus, PrometheusVm};
 
 const DKG_INTERVAL: u64 = 9;
 
-const ALLOWED_FAILURES: usize = 1;
+const ALLOWED_FAILURES: usize = 4;
 const SUBNET_SIZE: usize = 3 * ALLOWED_FAILURES + 1; // 4 nodes
 const SCHNORR_MSG_SIZE_BYTES: usize = 2_096_000; // 2MiB minus some message overhead
 
