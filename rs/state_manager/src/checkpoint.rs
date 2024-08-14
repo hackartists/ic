@@ -136,7 +136,7 @@ pub(crate) fn make_checkpoint(
             Arc::clone(&fd_factory),
         )?
     };
-
+    std::thread::sleep(Duration::from_secs(2));
     cp.remove_unverified_checkpoint_marker()?;
 
     Ok((cp, state, has_downgrade))

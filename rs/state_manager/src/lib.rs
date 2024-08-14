@@ -2459,7 +2459,13 @@ impl StateManagerImpl {
             )
         };
         let (cp_layout, checkpointed_state, has_downgrade) = match result {
-            Ok(response) => response,
+            Ok(response) => {
+                info!(
+                    self.log,
+                    "Successfully loaded checkpoint @{} and mark it as verified", height
+                );
+                response
+            }
             Err(CheckpointError::AlreadyExists(_)) => {
                 warn!(
                     self.log,
