@@ -97,6 +97,11 @@ impl StateSync {
             }
         };
 
+        info!(
+            self.log,
+            "Successfully loaded checkpoint @{} and mark it as verified", height
+        );
+
         self.state_manager.on_synced_checkpoint(
             state,
             ro_layout,

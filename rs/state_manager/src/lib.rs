@@ -2484,6 +2484,10 @@ impl StateManagerImpl {
                             &self.metrics.checkpoint_metrics,
                             self.get_fd_factory(),
                         )?;
+                        info!(
+                            self.log,
+                            "Successfully loaded checkpoint @{} and mark it as verified", height
+                        );
                         Ok((layout, state))
                     })
                     .unwrap_or_else(|err| {

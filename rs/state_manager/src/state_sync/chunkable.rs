@@ -807,6 +807,13 @@ impl IncompleteState {
                 )
             });
 
+        info!(
+            log,
+            "state sync: created a marker for scratchpad {} at path {}",
+            height,
+            scratchpad_layout.raw_path().display()
+        );
+
         match state_layout.scratchpad_to_checkpoint(scratchpad_layout, height, Some(thread_pool)) {
             Ok(_) => {
                 let elapsed = started_at.elapsed();

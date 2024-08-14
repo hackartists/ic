@@ -210,6 +210,12 @@ pub(crate) fn spawn_tip_thread(
                                             .expect("Failed to return TipToCheckpoint error");
                                         continue;
                                     }
+                                    info!(
+                                        log,
+                                        "Tip: created a marker for tip @{} at path: {:?}",
+                                        height,
+                                        tip.raw_path().display()
+                                    );
 
                                     let cp_or_err = state_layout.scratchpad_to_checkpoint(
                                         tip,
