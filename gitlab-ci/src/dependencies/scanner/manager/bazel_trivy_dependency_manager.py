@@ -58,7 +58,7 @@ class TrivyResultParser(abc.ABC):
             if "redhat" in vulnerability["CVSS"]:
                 if "V3Score" in vulnerability["CVSS"]["redhat"]:
                     scores.append(round(vulnerability["CVSS"]["redhat"]["V3Score"]))
-        if dep.id.startswith("linux-modules-5.15.0") or dep.id.startswith("linux-libc-dev"):
+        if not (dep.id.startswith("linux-modules-5.15.0") or dep.id.startswith("linux-libc-dev")):
             return scores[0] if nvd else -1
         if len(scores) > 0:
             return max(scores)
