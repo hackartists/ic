@@ -47,15 +47,19 @@ class TrivyResultParser(abc.ABC):
         raise NotImplementedError
 
     @staticmethod
-    def __score(vulnerability: typing.Dict[str, typing.Any]) -> int:
+    def __score(vulnerability: typing.Dict[str, typing.Any], dep: Dependency) -> int:
         scores = []
+        nvd = False
         if "CVSS" in vulnerability:
             if "nvd" in vulnerability["CVSS"]:
                 if "V3Score" in vulnerability["CVSS"]["nvd"]:
                     scores.append(round(vulnerability["CVSS"]["nvd"]["V3Score"]))
+                    nvd = True
             if "redhat" in vulnerability["CVSS"]:
                 if "V3Score" in vulnerability["CVSS"]["redhat"]:
                     scores.append(round(vulnerability["CVSS"]["redhat"]["V3Score"]))
+        if dep.id.startswith("linux-modules-5.15.0") or dep.id.startswith("linux-libc-dev"):
+            return scores[0] if nvd else -1
         if len(scores) > 0:
             return max(scores)
         return -1
@@ -98,7 +102,7 @@ class TrivyResultParser(abc.ABC):
                         id=vulnerability_id,
                         name=trivy_vulnerability["VulnerabilityID"],
                         description=unescape(trivy_vulnerability["Title"]) if "Title" in trivy_vulnerability else "n/a",
-                        score=TrivyResultParser.__score(trivy_vulnerability),
+                        score=TrivyResultParser.__score(trivy_vulnerability, vulnerable_dependency),
                     )
                 )
                 if "FixedVersion" in trivy_vulnerability:
