@@ -617,7 +617,6 @@ class JiraFindingDataSource(FindingDataSource):
         return does_exceed
 
     def create_or_update_open_finding(self, finding: Finding):
-        return
         logging.debug(f"create_or_update_open_finding({finding})")
         self.__load_findings_for_scanner(finding.scanner)
         finding_new: Finding = deepcopy(finding)
@@ -634,12 +633,12 @@ class JiraFindingDataSource(FindingDataSource):
                     self.app_owner_msg_subscriber.send_notification_to_app_owners(log_msg)
                 else:
                     logging.debug(f"updating finding fields {fields_to_update}")
-                    jira_issue.update(fields_to_update)
+                    # jira_issue.update(fields_to_update)
                     self.findings[finding.id()] = (finding_new, jira_issue)
             else:
                 logging.debug(f"no fields were changed for finding {finding}")
-            for sub in self.subscribers:
-                sub.on_finding_refreshed(deepcopy(finding_old), deepcopy(finding))
+            # for sub in self.subscribers:
+            #     sub.on_finding_refreshed(deepcopy(finding_old), deepcopy(finding))
         else:
             # create finding
             logging.debug(f"creating finding {finding}")
@@ -651,15 +650,15 @@ class JiraFindingDataSource(FindingDataSource):
                 self.app_owner_msg_subscriber.send_notification_to_app_owners(log_msg)
             else:
                 logging.debug(f"creating finding fields {fields_to_update}")
-                jira_issue = self.jira.create_issue(fields_to_update)
-                finding.more_info = jira_issue.permalink()
-                self.findings[finding.id()] = (finding_new, jira_issue)
-                for sub in self.subscribers:
-                    sub.on_finding_created(deepcopy(finding))
+                # jira_issue = self.jira.create_issue(fields_to_update)
+                # finding.more_info = jira_issue.permalink()
+                self.findings[finding.id()] = (finding_new, None)
+                # for sub in self.subscribers:
+                #     sub.on_finding_created(deepcopy(finding))
 
     def delete_finding(self, finding: Finding):
-        return
         logging.debug(f"delete_finding({finding})")
+        return
         self.__load_findings_for_scanner(finding.scanner)
 
         if finding.id() in self.findings:
@@ -669,9 +668,8 @@ class JiraFindingDataSource(FindingDataSource):
                 sub.on_finding_deleted(finding_stored)
 
     def link_findings(self, finding_a: Finding, finding_b: Finding):
-        return
         logging.debug(f"link_findings({finding_a}, {finding_b})")
-
+        return
         # finding_a might be a deleted finding or an existing finding
         deleted_finding_cache_key = (finding_a.repository, finding_a.scanner, finding_a.vulnerable_dependency.id)
         jira_issue_a = None
