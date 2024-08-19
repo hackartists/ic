@@ -19,6 +19,8 @@ from model.security_risk import SecurityRisk
 from model.team import Team
 from model.user import User
 from model.vulnerability import Vulnerability
+from notification.app_owner_msg_subscriber import AppOwnerMsgSubscriber
+from notification.console_logger_app_owner_msg_subscriber import ConsoleLoggerAppOwnerMsgSubscriber
 
 JIRA_SERVER = "https://dfinity.atlassian.net"
 JIRA_USER = "vuln-mgmt@dfinity.org"
@@ -80,8 +82,9 @@ class JiraFindingDataSource(FindingDataSource):
     findings_cached_for_scanner: Set[str]
     deleted_findings_cached: Dict[Tuple[str, str, str], List[Tuple[Finding, Issue]]]
     risk_assessors: List[User]
+    app_owner_msg_subscriber: AppOwnerMsgSubscriber
 
-    def __init__(self, subscribers: List[FindingDataSourceSubscriber], custom_jira: Optional[JIRA] = None):
+    def __init__(self, subscribers: List[FindingDataSourceSubscriber], app_owner_msg_subscriber: AppOwnerMsgSubscriber = ConsoleLoggerAppOwnerMsgSubscriber(), custom_jira: Optional[JIRA] = None):
         logging.debug(f"JiraFindingDataSource({subscribers},{custom_jira})")
         self.subscribers = subscribers
         self.jira = (
@@ -91,6 +94,7 @@ class JiraFindingDataSource(FindingDataSource):
         self.findings_cached_for_scanner = set()
         self.deleted_findings_cached = {}
         self.risk_assessors = []
+        self.app_owner_msg_subscriber = app_owner_msg_subscriber
 
     # Remove the unnecessary text strings from the description of the Linux kernel CNA CVEs
     @staticmethod
@@ -624,8 +628,10 @@ class JiraFindingDataSource(FindingDataSource):
             fields_to_update = self.__finding_diff_to_jira(finding_old, finding)
             if len(fields_to_update) > 0:
                 if self.__does_exceed_character_limit(finding, fields_to_update):
-                    # in this case we print the whole finding, so we have the updated finding at least in the log
-                    logging.warning(f"skipping update of the following finding because some fields exceed character limit: {finding.id()} ")
+                    # print warning and notify app owners
+                    log_msg = f"skipping update of the following finding because some fields exceed character limit: {finding.id()} "
+                    logging.warning(log_msg)
+                    self.app_owner_msg_subscriber.send_notification_to_app_owners(log_msg)
                 else:
                     logging.debug(f"updating finding fields {fields_to_update}")
                     jira_issue.update(fields_to_update)
@@ -639,8 +645,10 @@ class JiraFindingDataSource(FindingDataSource):
             logging.debug(f"creating finding {finding}")
             fields_to_update = self.__finding_diff_to_jira(None, finding)
             if self.__does_exceed_character_limit(finding, fields_to_update):
-                # in this case we print the whole finding, so we have the new finding at least in the log
-                logging.warning(f"skipping creation of the following finding because some fields exceed character limit: {finding.id()}")
+                # print warning and notify app owners
+                log_msg = f"skipping creation of the following finding because some fields exceed character limit: {finding.id()}"
+                logging.warning(log_msg)
+                self.app_owner_msg_subscriber.send_notification_to_app_owners(log_msg)
             else:
                 logging.debug(f"creating finding fields {fields_to_update}")
                 jira_issue = self.jira.create_issue(fields_to_update)
