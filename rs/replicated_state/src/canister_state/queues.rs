@@ -17,8 +17,8 @@ use ic_protobuf::state::queues::v1::canister_queues::{
 };
 use ic_protobuf::types::v1 as pb_types;
 use ic_types::messages::{
-    CanisterMessage, Ingress, Payload, RejectContext, Request, RequestOrResponse, Response,
-    MAX_RESPONSE_COUNT_BYTES, NO_DEADLINE,
+    CallbackId, CanisterMessage, Ingress, Payload, RejectContext, Request, RequestOrResponse,
+    Response, MAX_RESPONSE_COUNT_BYTES, NO_DEADLINE,
 };
 use ic_types::{CanisterId, CountBytes, Time};
 use ic_validate_eq::ValidateEq;
@@ -120,6 +120,12 @@ pub struct CanisterQueues {
     /// Round-robin across ingress and cross-net input queues for `pop_input()`.
     #[validate_eq(Ignore)]
     next_input_queue: NextInputQueue,
+
+    /// The callback IDs of all responses enqueued in the input queues.
+    ///
+    /// Used for response deduplication (whether due to a locally generated reject
+    /// response to a best-effort call; or due to a malicious / buggy subnet).
+    callbacks_with_enqueued_response: BTreeSet<CallbackId>,
 }
 
 /// Circular iterator that consumes output queue messages: loops over output
@@ -337,12 +343,23 @@ impl CanisterQueues {
     ///    output queues are full.
     ///
     ///  * `NonMatchingResponse` if pushing a `Response` and the corresponding input
-    ///    queue does not have a reserved slot.
+    ///    queue does not have a reserved slot; or this is a duplicate guaranteed
+    ///    response.
     pub(super) fn push_input(
         &mut self,
         msg: RequestOrResponse,
         input_queue_type: InputQueueType,
     ) -> Result<(), (StateError, RequestOrResponse)> {
+        fn non_matching_response(message: &str, response: &Response) -> StateError {
+            StateError::NonMatchingResponse {
+                err_str: message.to_string(),
+                originator: response.originator,
+                callback_id: response.originator_reply_callback,
+                respondent: response.respondent,
+                deadline: response.deadline,
+            }
+        }
+
         let sender = msg.sender();
         let input_queue = match &msg {
             RequestOrResponse::Request(_) => {
@@ -360,18 +377,31 @@ impl CanisterQueues {
             }
             RequestOrResponse::Response(response) => {
                 match self.canister_queues.get_mut(&sender) {
-                    Some((queue, _)) if queue.check_has_reserved_response_slot().is_ok() => queue,
+                    Some((queue, _)) if queue.check_has_reserved_response_slot().is_ok() => {
+                        // Check against duplicate responses.
+                        if !self
+                            .callbacks_with_enqueued_response
+                            .insert(response.originator_reply_callback)
+                        {
+                            // This is a critical error for guaranteed responses.
+                            if response.deadline == NO_DEADLINE {
+                                return Err((
+                                    non_matching_response("Duplicate response", response),
+                                    msg,
+                                ));
+                            } else {
+                                // But is OK for best-effort responses (if we already generated a timeout response).
+                                // Silently ignore the response.
+                                return Ok(());
+                            }
+                        }
+                        queue
+                    }
 
                     // Queue does not exist or has no reserved slot for this response.
                     _ => {
                         return Err((
-                            StateError::NonMatchingResponse {
-                                err_str: "No reserved response slot".to_string(),
-                                originator: response.originator,
-                                callback_id: response.originator_reply_callback,
-                                respondent: response.respondent,
-                                deadline: response.deadline,
-                            },
+                            non_matching_response("No reserved response slot", response),
                             msg,
                         ));
                     }
@@ -435,6 +465,11 @@ impl CanisterQueues {
                 canister_queues_ok(&self.canister_queues, &self.pool)
             );
             if let Some(msg) = msg {
+                if let RequestOrResponse::Response(response) = &msg {
+                    assert!(self
+                        .callbacks_with_enqueued_response
+                        .remove(&response.originator_reply_callback));
+                }
                 return Some(msg.into());
             }
         }
@@ -1027,11 +1062,17 @@ impl CanisterQueues {
                 return;
             }
 
+            (Inbound, RequestOrResponse::Response(response)) => {
+                // TODO(MR-603): Recall the `Id` -> `CallbackId` of shed inbound responses and
+                // generate a reject response on the fly when the respective `Id` is popped.
+                assert!(self
+                    .callbacks_with_enqueued_response
+                    .remove(&response.originator_reply_callback));
+                return;
+            }
+
             // Inbound or outbound response, nothing left to do.
-            //
-            // TODO(MR-603): Recall the `Id` -> `CallbackId` of shed inbound responses and
-            // generate a reject response on the fly when the respective `Id` is popped.
-            (_, RequestOrResponse::Response(_)) => return,
+            (Outbound, RequestOrResponse::Response(_)) => return,
         };
         let response = generate_timeout_response(request);
         let destination = &request.receiver;
@@ -1040,6 +1081,9 @@ impl CanisterQueues {
         // Update stats for the generated response.
         self.queue_stats.on_push_response(&response, Inbound);
 
+        assert!(self
+            .callbacks_with_enqueued_response
+            .insert(response.originator_reply_callback));
         let id = self.pool.insert_inbound(response.into());
         input_queue.push_response(id);
 
@@ -1415,6 +1459,15 @@ impl TryFrom<(pb_queues::CanisterQueues, &dyn CheckpointLoadingMetrics)> for Can
             .chain(remote_subnet_input_schedule.iter().cloned())
             .collect();
 
+        let callbacks_with_enqueued_response = canister_queues
+            .values()
+            .flat_map(|(input_queue, _)| input_queue.iter())
+            .filter_map(|item| match pool.get(item.id()) {
+                Some(RequestOrResponse::Response(rep)) => Some(rep.originator_reply_callback),
+                _ => None,
+            })
+            .collect();
+
         let queues = Self {
             ingress_queue: IngressQueue::try_from(item.ingress_queue)?,
             canister_queues,
@@ -1424,6 +1477,7 @@ impl TryFrom<(pb_queues::CanisterQueues, &dyn CheckpointLoadingMetrics)> for Can
             remote_subnet_input_schedule,
             input_schedule_canisters,
             next_input_queue,
+            callbacks_with_enqueued_response,
         };
 
         // Safe to call with invalid `own_canister_id` and empty `local_canisters`, as
