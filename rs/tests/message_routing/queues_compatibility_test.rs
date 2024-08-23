@@ -267,7 +267,7 @@ fn test(env: TestEnv) {
         .chain([TestCase::new(
             TestType::Bidirectional {
                 published_binary: "replicated-state-test".to_string(),
-                mainnet_version: "2d220277bda0b29c90c48eac66fd56beeed59c11".to_string(),
+                mainnet_version: "fa1d883e279df5f54ccedc56416a0b2821b323c1".to_string(),
             },
             "ic/rs/replicated_state/replicated_state_test_binary/replicated_state_test_binary",
             "canister_state::queues::tests::mainnet_compatibility_tests::input_order_test",
