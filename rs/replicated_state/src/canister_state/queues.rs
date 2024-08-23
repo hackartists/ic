@@ -387,6 +387,7 @@ impl CanisterQueues {
                             .callbacks_with_enqueued_response
                             .insert(response.originator_reply_callback)
                         {
+                            debug_assert_eq!(Ok(()), self.test_invariants());
                             // This is a critical error for guaranteed responses.
                             if response.deadline == NO_DEADLINE {
                                 return Err((
@@ -1179,8 +1180,9 @@ impl CanisterQueues {
     }
 
     /// Helper function for concisely validating invariants other than those of
-    /// input queue schedules (no stale references at queue front, valid stats)
-    /// during deserialization; or in debug builds, by writing
+    /// input queue schedules (no stale references at queue front, valid stats,
+    /// accurate tracking of callbacks with enqueued responses) during
+    /// deserialization; or in debug builds, by writing
     /// `debug_assert_eq!(Ok(()), self.test_invariants())`.
     ///
     /// Time complexity: `O(n * log(n))`.
@@ -1203,6 +1205,17 @@ impl CanisterQueues {
             return Err(format!(
                 "Inconsistent stats:\n  expected: {:?}\n  actual: {:?}",
                 calculated_stats, self.queue_stats
+            ));
+        }
+
+        // `callbacks_with_enqueued_response` contains the precise set of `CallbackIds`
+        // of all inbound responses.
+        let enqueued_response_callbacks =
+            callbacks_with_enqueued_response(&self.canister_queues, &self.pool)?;
+        if self.callbacks_with_enqueued_response != enqueued_response_callbacks {
+            return Err(format!(
+                "Inconsistent `callbacks_with_enqueued_response`:\n  expected: {:?}\n  actual: {:?}",
+                enqueued_response_callbacks, self.callbacks_with_enqueued_response
             ));
         }
 
@@ -1268,6 +1281,33 @@ fn canister_queue_ok(
     }
 
     Ok(())
+}
+
+/// Collects the `CallbackIds` of all the responses enqueued in input queues.
+///
+/// Returns an error if there are duplicate `CallbackIds` among the responses.
+fn callbacks_with_enqueued_response(
+    canister_queues: &BTreeMap<CanisterId, (CanisterQueue, CanisterQueue)>,
+    pool: &MessagePool,
+) -> Result<BTreeSet<CallbackId>, String> {
+    let mut callbacks_with_enqueued_response = BTreeSet::new();
+    let duplicates: Vec<_> = canister_queues
+        .values()
+        .flat_map(|(input_queue, _)| input_queue.iter())
+        .filter_map(|item| match pool.get(item.id()) {
+            Some(RequestOrResponse::Response(rep)) => Some(rep.originator_reply_callback),
+            _ => None,
+        })
+        .filter(|callback_id| !callbacks_with_enqueued_response.insert(callback_id.clone()))
+        .collect();
+    if !duplicates.is_empty() {
+        return Err(format!(
+            "CanisterQueues: Duplicate callback(s) in inbound responses: {:?}",
+            duplicates
+        ));
+    }
+
+    Ok(callbacks_with_enqueued_response)
 }
 
 /// Generates a timeout reject response from a request, refunding its payment.
@@ -1444,14 +1484,9 @@ impl TryFrom<(pb_queues::CanisterQueues, &dyn CheckpointLoadingMetrics)> for Can
             .chain(remote_subnet_input_schedule.iter().cloned())
             .collect();
 
-        let callbacks_with_enqueued_response = canister_queues
-            .values()
-            .flat_map(|(input_queue, _)| input_queue.iter())
-            .filter_map(|item| match pool.get(item.id()) {
-                Some(RequestOrResponse::Response(rep)) => Some(rep.originator_reply_callback),
-                _ => None,
-            })
-            .collect();
+        let callbacks_with_enqueued_response =
+            callbacks_with_enqueued_response(&canister_queues, &pool)
+                .map_err(ProxyDecodeError::Other)?;
 
         let queues = Self {
             ingress_queue: IngressQueue::try_from(item.ingress_queue)?,
