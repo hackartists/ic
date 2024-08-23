@@ -1298,7 +1298,7 @@ fn callbacks_with_enqueued_response(
             Some(RequestOrResponse::Response(rep)) => Some(rep.originator_reply_callback),
             _ => None,
         })
-        .filter(|callback_id| !callbacks_with_enqueued_response.insert(callback_id.clone()))
+        .filter(|callback_id| !callbacks_with_enqueued_response.insert(*callback_id))
         .collect();
     if !duplicates.is_empty() {
         return Err(format!(
