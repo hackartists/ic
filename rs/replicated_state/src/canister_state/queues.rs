@@ -575,16 +575,14 @@ impl CanisterQueues {
     fn get_canister_input(&self, id: message_pool::Id) -> Option<CanisterInput> {
         // Try the message pool first.
         if let Some(msg) = self.pool.get(id) {
-            return Some(msg.clone().into());
-        }
-
+            Some(msg.clone().into())
         // Else, fall back to looking it up among the dropped responses.
-        if id.kind() == Kind::Request {
-            return None;
-        } else {
+        } else if id.kind() == Kind::Response {
             Some(CanisterInput::UnknownResponse(
                 *self.dropped_inbound_responses.get(&id).unwrap(),
             ))
+        } else {
+            None
         }
     }
 
@@ -610,7 +608,7 @@ impl CanisterQueues {
     pub fn has_input(&self) -> bool {
         !self.ingress_queue.is_empty()
             || self.pool.message_stats().inbound_message_count > 0
-            || self.dropped_inbound_responses.len() > 0
+            || !self.dropped_inbound_responses.is_empty()
     }
 
     /// Returns `true` if at least one output queue contains non-stale messages;
@@ -1130,7 +1128,7 @@ impl CanisterQueues {
 
             // Outbound request: enqueue a `SYS_TRANSIENT` timeout reject response.
             (Outbound, RequestOrResponse::Request(request)) => {
-                let response = generate_timeout_response(&*request);
+                let response = generate_timeout_response(request);
                 let destination = &request.receiver;
                 let (input_queue, _) = self.canister_queues.get_mut(destination).unwrap();
 
