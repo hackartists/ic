@@ -105,6 +105,7 @@ pub fn get_config_ini_settings(config_file_path: &Path) -> Result<ConfigIniSetti
         ipv4_prefix_length,
         domain,
         mgmt_mac: None,
+        firewall: None,
     };
 
     let verbose = config_map

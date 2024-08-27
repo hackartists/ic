@@ -29,6 +29,13 @@ function copy_config_files() {
         log_and_halt_installation_on_error "1" "Configuration file 'config.ini' does not exist."
     fi
 
+    # This file is optional.  It will not be used if absent.
+    if [ -f "${CONFIG_DIR}/firewall.json" ]; then
+        echo "* Copying 'firewall.json' to hostOS config partition..."
+        cp ${CONFIG_DIR}/firewall.json /media/
+        log_and_halt_installation_on_error "${?}" "Unable to copy 'firewall.json' to hostOS config partition."
+    fi
+
     echo "* Copying SSH authorized keys..."
     ssh_authorized_keys=$(get_config_value '.icos_settings.ssh_authorized_keys_path')
     if [ -n "${ssh_authorized_keys}" ] && [ "${ssh_authorized_keys}" != "null" ]; then
