@@ -79,7 +79,13 @@ pub struct CanisterQueues {
 
     /// Per remote canister input and output queues. Queues hold references into the
     /// message pool, some of which may be stale due to expiration or load shedding.
+    ///
     /// The item at the head of each queue, if any, is guaranteed to be non-stale.
+    /// This is because we want to avoid a live lock, where a canister's output
+    /// queue(s) are filled to capacity with stale references, preventing any more
+    /// messages from being enqueued; but at the same time the canister is never
+    /// included in an `OutputIterator` (the only way of consuming the stale
+    /// references).
     #[validate_eq(CompareWithValidateEq)]
     canister_queues: BTreeMap<CanisterId, (CanisterQueue, CanisterQueue)>,
 
@@ -117,6 +123,11 @@ pub struct CanisterQueues {
     /// Set of all canisters enqueued in either `local_subnet_input_schedule` or
     /// `remote_subnet_input_schedule`, to ensure that a canister is scheduled at
     /// most once.
+    ///
+    /// We cannot rely on the input queue going from empty to non-empty as the only
+    /// condition for whether to enqueue a canister, because the contents of the
+    /// queue may have been dropped (due to expiration or load shedding) with the
+    /// canister already in one of the schedules.
     input_schedule_canisters: BTreeSet<CanisterId>,
 
     /// Round-robin across ingress and cross-net input queues for `pop_input()`.
@@ -338,7 +349,7 @@ impl CanisterQueues {
                     Ok(_) => {
                         self.pool
                             .take(id)
-                            .expect("ger() returned a message, take() should not fail");
+                            .expect("get() returned a message, take() should not fail");
                         assert_eq!(Some(*item), queue.pop());
                     }
                 }
@@ -988,11 +999,14 @@ impl CanisterQueues {
         // `CanisterQueues` serializes as an empty byte array (and there is no need to
         // persist it explicitly).
         if self.canister_queues.is_empty() && self.ingress_queue.is_empty() {
-            // The schedules and stats will already have default (zero) values, only
-            // `next_input_queue` and `pool` must be reset explicitly.
-            self.next_input_queue = Default::default();
+            // The schedules and stats will already have default (zero) values, only `pool`
+            // and the input schedule related fields must be reset explicitly.
             assert!(self.pool.len() == 0);
             self.pool = MessagePool::default();
+            self.local_subnet_input_schedule = Default::default();
+            self.remote_subnet_input_schedule = Default::default();
+            self.input_schedule_canisters = Default::default();
+            self.next_input_queue = Default::default();
 
             // Trust but verify. Ensure everything is actually set to default.
             debug_assert_eq!(CanisterQueues::default(), *self);
@@ -1069,10 +1083,13 @@ impl CanisterQueues {
 
     /// Handles the timing out or shedding of a message from the pool.
     ///
-    /// Generates and enqueues a reject response if the message was an own request.
-    /// And updates the stats for the dropped message and (where applicable) the
-    /// generated response. `own_canister_id` and `local_canisters` are required
-    /// to determine the correct input queue schedule to update (if applicable).
+    /// Records the callback of a shed inbound best-effort response. Releases the
+    /// outbound slot reservation of a shed inbound request. Generates and enqueues
+    /// a reject response if the message was an outbound request. Updates the stats
+    /// for the dropped message and (where applicable) the generated response.
+    ///
+    /// `own_canister_id` and `local_canisters` are required to determine the
+    /// correct input queue schedule to update (when generating a reject response).
     fn on_message_dropped(
         &mut self,
         id: message_pool::Id,
