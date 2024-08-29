@@ -1153,8 +1153,6 @@ impl CanisterQueues {
             // Outbound request: enqueue a `SYS_TRANSIENT` timeout reject response.
             (Outbound, RequestOrResponse::Request(request)) => {
                 let response = generate_timeout_response(request);
-                let destination = &request.receiver;
-                let (input_queue, _) = self.canister_queues.get_mut(destination).unwrap();
 
                 // Update stats for the generated response.
                 self.queue_stats.on_push_response(&response, Inbound);
@@ -1163,10 +1161,10 @@ impl CanisterQueues {
                     .callbacks_with_enqueued_response
                     .insert(response.originator_reply_callback));
                 let id = self.pool.insert_inbound(response.into());
-                input_queue.push_response(id);
+                reverse_queue.push_response(id);
 
                 // If the input queue is not already in an input schedule, add it.
-                if input_queue.len() == 1 && self.input_schedule_canisters.insert(remote) {
+                if reverse_queue.len() == 1 && self.input_schedule_canisters.insert(remote) {
                     if &remote == own_canister_id || local_canisters.contains_key(&remote) {
                         self.local_subnet_input_schedule.push_back(remote)
                     } else {
