@@ -593,14 +593,14 @@ impl CanisterQueues {
     /// up in the message pool or in the shed inbound responses map.
     fn get_canister_input(&self, id: message_pool::Id) -> Option<CanisterInput> {
         if let Some(msg) = self.pool.get(id) {
-            debug_assert!(self.shed_responses.get(&id).is_none());
+            debug_assert!(!self.shed_responses.contains_key(&id));
             Some(msg.clone().into())
         } else if id.kind() == Kind::Response {
             self.shed_responses
                 .get(&id)
                 .map(|callback_id| CanisterInput::UnknownResponse(*callback_id))
         } else {
-            debug_assert!(self.shed_responses.get(&id).is_none());
+            debug_assert!(!self.shed_responses.contains_key(&id));
             None
         }
     }
