@@ -1753,29 +1753,44 @@ fn decode_backward_compatibility() {
     assert_eq!(expected_queues, queues);
 }
 
-#[test]
-fn decode_duplicate_inbound_response() {
+/// Constructs an encoded `CanisterQueues` with 2 inbound responses (callbacks 1
+/// and 2) and one shed inbound response (callback 3).
+fn canister_queues_proto_with_inbound_responses() -> pb_queues::CanisterQueues {
     let mut queues = CanisterQueues::default();
 
-    // Make 2 input queue reservations.
+    // Make 3 input queue reservations.
+    let deadline = coarse_time(1);
     queues
         .push_output_request(request(1, NO_DEADLINE).into(), UNIX_EPOCH)
         .unwrap();
     queues
-        .push_output_request(request(2, coarse_time(1)).into(), UNIX_EPOCH)
+        .push_output_request(request(2, deadline).into(), UNIX_EPOCH)
         .unwrap();
-    assert_eq!(2, queues.output_into_iter().count());
+    queues
+        .push_output_request(request(3, deadline).into(), UNIX_EPOCH)
+        .unwrap();
+    assert_eq!(3, queues.output_into_iter().count());
 
-    // Enqueue 2 inbound responses.
+    // Enqueue 3 inbound responses.
     queues
         .push_input(response(1, NO_DEADLINE).into(), LocalSubnet)
         .unwrap();
     queues
-        .push_input(response(2, coarse_time(1)).into(), LocalSubnet)
+        .push_input(response(2, deadline).into(), LocalSubnet)
+        .unwrap();
+    queues
+        .push_input(response(3, deadline).into(), LocalSubnet)
         .unwrap();
 
+    // Shed the response for callback 3.
+    assert!(queues.shed_largest_message(&canister_test_id(13), &BTreeMap::new()));
+    assert_eq!(
+        Some(&CallbackId::from(3)),
+        queues.shed_responses.values().next()
+    );
+
     // Sanity check: roundtrip encode succeeds.
-    let mut encoded: pb_queues::CanisterQueues = (&queues).into();
+    let encoded: pb_queues::CanisterQueues = (&queues).into();
     let decoded = (
         encoded.clone(),
         &StrictMetrics as &dyn CheckpointLoadingMetrics,
@@ -1784,7 +1799,14 @@ fn decode_duplicate_inbound_response() {
         .unwrap();
     assert_eq!(queues, decoded);
 
-    // Tweak the encoded queues so both responses have the same `CallbackId`.
+    encoded
+}
+
+#[test]
+fn decode_with_duplicate_response_callback_in_pool() {
+    let mut encoded = canister_queues_proto_with_inbound_responses();
+
+    // Tweak the pool so both responses have the same `CallbackId`.
     for entry in &mut encoded.pool.as_mut().unwrap().messages {
         let message = entry.message.as_mut().unwrap().r.as_mut().unwrap();
         let pb_queues::request_or_response::R::Response(ref mut response) = message else {
@@ -1793,10 +1815,93 @@ fn decode_duplicate_inbound_response() {
         response.originator_reply_callback = 1;
     }
 
-    // Decoding should now fail because of the duplicate `CallbackId`.
-    let err = CanisterQueues::try_from((encoded, &StrictMetrics as &dyn CheckpointLoadingMetrics))
-        .unwrap_err();
-    assert_matches!(err, ProxyDecodeError::Other(msg) if &msg == "CanisterQueues: Duplicate callback(s) in inbound responses: [1]");
+    assert_matches!(
+        CanisterQueues::try_from((encoded, &StrictMetrics as &dyn CheckpointLoadingMetrics)),
+        Err(ProxyDecodeError::Other(msg)) if &msg == "CanisterQueues: Duplicate inbpund response callback(s): [1, 1, 3]"
+    );
+}
+
+#[test]
+fn decode_with_duplicate_response_callback_in_shed_responses() {
+    let mut encoded = canister_queues_proto_with_inbound_responses();
+
+    // Have the callback ID of the shed response match that of one of the responses.
+    for shed_response in &mut encoded.shed_responses {
+        shed_response.callback_id = 1;
+    }
+
+    assert_matches!(
+        CanisterQueues::try_from((encoded, &StrictMetrics as &dyn CheckpointLoadingMetrics)),
+        Err(ProxyDecodeError::Other(msg)) if &msg == "CanisterQueues: Duplicate inbpund response callback(s): [1, 2, 1]"
+    );
+}
+
+#[test]
+fn decode_with_duplicate_reference() {
+    let mut encoded = canister_queues_proto_with_inbound_responses();
+
+    // Replace the reference to the second response with a duplicate reference to
+    // the third.
+    let input_queue = encoded.canister_queues[0].input_queue.as_mut().unwrap();
+    input_queue.queue[1] = input_queue.queue.get(2).cloned().unwrap();
+
+    let metrics = CountingMetrics(RefCell::new(0));
+    assert_matches!(
+        CanisterQueues::try_from((encoded, &metrics as &dyn CheckpointLoadingMetrics)),
+        Err(ProxyDecodeError::Other(msg)) if &msg == "CanisterQueues: Duplicate inbpund response callback(s): [1, 3, 3]"
+    );
+    // A critical error should also have been observed.
+    assert_eq!(1, *metrics.0.borrow());
+}
+
+#[test]
+fn decode_with_both_response_and_shed_response_for_reference() {
+    let mut encoded = canister_queues_proto_with_inbound_responses();
+
+    // Make the the shed response have the same reference as one of the responses.
+    let input_queue = encoded.canister_queues[0].input_queue.as_ref().unwrap();
+    let queue_item = input_queue.queue.get(1).unwrap();
+    let pb_queues::canister_queue::queue_item::R::Reference(response_id) =
+        queue_item.r.as_ref().unwrap();
+    for shed_response in &mut encoded.shed_responses {
+        shed_response.id = *response_id;
+    }
+
+    assert_matches!(
+        CanisterQueues::try_from((encoded, &StrictMetrics as &dyn CheckpointLoadingMetrics)),
+        Err(ProxyDecodeError::Other(msg)) if msg.contains("CanisterQueues: Both response and shed response for reference Id(")
+    );
+}
+
+#[test]
+fn decode_with_unreferenced_inbound_response() {
+    let mut encoded = canister_queues_proto_with_inbound_responses();
+
+    // Remove the reference to the second response.
+    let input_queue = encoded.canister_queues[0].input_queue.as_mut().unwrap();
+    input_queue.queue.remove(1);
+
+    let metrics = CountingMetrics(RefCell::new(0));
+    assert_matches!(
+        CanisterQueues::try_from((encoded, &metrics as &dyn CheckpointLoadingMetrics)),
+        Err(ProxyDecodeError::Other(msg)) if &msg == "CanisterQueues: Have 3 inbound responses, but only 2 are enqueued"
+    );
+    // A critical error should also have been observed.
+    assert_eq!(1, *metrics.0.borrow());
+}
+
+#[test]
+fn decode_with_unreferenced_shed_response() {
+    let mut encoded = canister_queues_proto_with_inbound_responses();
+
+    // Remove the reference to the third (shed) response.
+    let input_queue = encoded.canister_queues[0].input_queue.as_mut().unwrap();
+    input_queue.queue.remove(2);
+
+    assert_matches!(
+        CanisterQueues::try_from((encoded, &StrictMetrics as &dyn CheckpointLoadingMetrics)),
+        Err(ProxyDecodeError::Other(msg)) if &msg == "CanisterQueues: Have 3 inbound responses, but only 2 are enqueued"
+    );
 }
 
 #[test]
