@@ -11,7 +11,7 @@ use ic_base_types::PrincipalId;
 use ic_crypto_sha2::Sha256;
 use ic_nervous_system_common_test_keys::TEST_NEURON_1_OWNER_KEYPAIR;
 use ic_nns_constants::{GOVERNANCE_CANISTER_ID, SNS_WASM_CANISTER_ID};
-use ic_nns_governance::pb::v1::{
+use ic_nns_governance_api::pb::v1::{
     manage_neuron::{self, NeuronIdOrSubaccount},
     manage_neuron_response::{self, MakeProposalResponse},
     ManageNeuron, ManageNeuronResponse, Proposal,
@@ -147,20 +147,22 @@ pub struct AddSnsWasmForTestsArgs {
 pub(crate) fn generate_sns_init_payload(path: &Path) -> Result<SnsInitPayload> {
     let configuration = read_create_service_nervous_system_from_init_yaml(path)?;
 
-    SnsInitPayload::try_from(configuration)
-        // This shouldn't be possible -> we could just unwrap here, and there
-        // should be no danger of panic, but we handle Err anyway, because if
-        // err is returned, it still makes sense to just return that.
-        //
-        // The reason Err should be impossible is
-        // try_convert_to_create_service_nervous_system itself call
-        // SnsInitPayload::try_from as part of its validation.
-        .map_err(|err| anyhow!("Invalid configuration in {:?}: {}", path, err))
+    SnsInitPayload::try_from(ic_nns_governance::pb::v1::CreateServiceNervousSystem::from(
+        configuration,
+    ))
+    // This shouldn't be possible -> we could just unwrap here, and there
+    // should be no danger of panic, but we handle Err anyway, because if
+    // err is returned, it still makes sense to just return that.
+    //
+    // The reason Err should be impossible is
+    // try_convert_to_create_service_nervous_system itself call
+    // SnsInitPayload::try_from as part of its validation.
+    .map_err(|err| anyhow!("Invalid configuration in {:?}: {}", path, err))
 }
 
 fn read_create_service_nervous_system_from_init_yaml(
     path: &Path,
-) -> Result<ic_nns_governance::pb::v1::CreateServiceNervousSystem> {
+) -> Result<ic_nns_governance_api::pb::v1::CreateServiceNervousSystem> {
     let contents = std::fs::read_to_string(path).context(format!("Unable to read {path:?}"))?;
     let configuration =
         serde_yaml::from_str::<crate::init_config_file::friendly::SnsConfigurationFile>(&contents)

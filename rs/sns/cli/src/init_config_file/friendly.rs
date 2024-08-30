@@ -1,10 +1,8 @@
 use anyhow::{anyhow, Result};
 use ic_base_types::PrincipalId;
 use ic_nervous_system_proto::pb::v1 as nervous_system_pb;
-use ic_nns_governance::{
-    governance::validate_user_submitted_proposal_fields,
-    pb::v1::{proposal::Action, CreateServiceNervousSystem, Proposal},
-};
+use ic_nns_governance::governance::validate_user_submitted_proposal_fields;
+use ic_nns_governance_api::pb::v1::{proposal::Action, CreateServiceNervousSystem, Proposal};
 use ic_sns_init::pb::v1::SnsInitPayload;
 use std::{
     fmt::Debug,
@@ -16,7 +14,7 @@ use std::{
 // related types in this module, put these aliases in their own module to avoid
 // getting mixed up.
 mod nns_governance_pb {
-    pub use ic_nns_governance::pb::v1::create_service_nervous_system::{
+    pub use ic_nns_governance_api::pb::v1::create_service_nervous_system::{
         governance_parameters::VotingRewardParameters,
         initial_token_distribution::{
             developer_distribution::NeuronDistribution, DeveloperDistribution, SwapDistribution,
@@ -368,7 +366,8 @@ impl SnsConfigurationFile {
             )),
         };
 
-        validate_user_submitted_proposal_fields(&proposal).map_err(|e| anyhow!("{}", e))?;
+        validate_user_submitted_proposal_fields(&(proposal.clone().into()))
+            .map_err(|e| anyhow!("{}", e))?;
 
         Ok(proposal)
     }
@@ -477,7 +476,9 @@ impl SnsConfigurationFile {
                 defects.join("\n  -"),
             ));
         }
-        if let Err(err) = SnsInitPayload::try_from(result.clone()) {
+        if let Err(err) = SnsInitPayload::try_from(
+            ic_nns_governance::pb::v1::CreateServiceNervousSystem::from(result.clone()),
+        ) {
             return Err(anyhow!(
                 "Unable to convert configuration file to proposal: {}",
                 err,
