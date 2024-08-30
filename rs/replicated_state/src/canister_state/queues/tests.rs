@@ -1,3 +1,4 @@
+use super::input_schedule::testing::InputScheduleTesting;
 use super::testing::{new_canister_output_queues_for_test, CanisterQueuesTesting};
 use super::InputQueueType::*;
 use super::*;
@@ -163,6 +164,18 @@ fn response_with_payload(payload_size: usize, callback: u64, deadline: CoarseTim
 
 const fn coarse_time(seconds_since_unix_epoch: u32) -> CoarseTime {
     CoarseTime::from_secs_since_unix_epoch(seconds_since_unix_epoch)
+}
+
+fn input_queue_type_from_local_canisters(
+    local_canisters: Vec<CanisterId>,
+) -> impl Fn(&CanisterId) -> InputQueueType {
+    move |sender| {
+        if local_canisters.contains(sender) {
+            LocalSubnet
+        } else {
+            RemoteSubnet
+        }
+    }
 }
 
 /// Can push one request to the output queues.
@@ -670,11 +683,24 @@ impl CanisterQueuesMultiFixture {
     }
 
     fn local_schedule(&self) -> Vec<CanisterId> {
-        self.queues.local_subnet_input_schedule.clone().into()
+        self.queues
+            .input_schedule
+            .local_sender_schedule()
+            .clone()
+            .into()
     }
 
     fn remote_schedule(&self) -> Vec<CanisterId> {
-        self.queues.remote_subnet_input_schedule.clone().into()
+        self.queues
+            .input_schedule
+            .remote_sender_schedule()
+            .clone()
+            .into()
+    }
+
+    fn schedules_ok(&self) -> Result<(), String> {
+        self.queues
+            .schedules_ok(&input_queue_type_from_local_canisters(vec![self.this]))
     }
 
     fn pool_is_empty(&self) -> bool {
@@ -1094,16 +1120,12 @@ fn canister_queues_with_empty_queues_in_input_schedules() -> CanisterQueues {
     fixture
         .push_input_request_with_deadline(other_6, coarse_time(1), RemoteSubnet)
         .unwrap();
+    assert_eq!(Ok(()), fixture.schedules_ok());
 
     // Time out the messages from `other_1`, `other_3`, `other_4` and `other_6`.
     fixture.time_out_all_messages_with_deadlines();
     assert_eq!(Ok(()), fixture.queues.test_invariants());
-    assert_eq!(
-        Ok(()),
-        fixture
-            .queues
-            .schedules_ok(&fixture.this, &BTreeMap::default())
-    );
+    assert_eq!(Ok(()), fixture.schedules_ok());
 
     let queues = fixture.queues;
 
@@ -1114,8 +1136,8 @@ fn canister_queues_with_empty_queues_in_input_schedules() -> CanisterQueues {
     assert_eq!(2, queues.output_queues_reserved_slots());
 
     // But both schedules still have length 3.
-    assert_eq!(3, queues.local_subnet_input_schedule.len());
-    assert_eq!(3, queues.remote_subnet_input_schedule.len());
+    assert_eq!(3, queues.input_schedule.local_sender_schedule().len());
+    assert_eq!(3, queues.input_schedule.remote_sender_schedule().len());
 
     queues
 }
@@ -1136,10 +1158,11 @@ fn test_empty_queue_in_input_schedule() {
     assert!(queues.pool.len() == 0);
     assert_eq!(
         Ok(()),
-        queues.schedules_ok(
-            &CanisterId::unchecked_from_principal(PrincipalId::new_anonymous()),
-            &BTreeMap::new(),
-        )
+        queues.schedules_ok(&input_queue_type_from_local_canisters(vec![
+            canister_test_id(1),
+            canister_test_id(2),
+            canister_test_id(3)
+        ]))
     );
 }
 
@@ -1164,10 +1187,7 @@ fn test_gced_queue_in_input_schedule() {
     assert!(queues.pool.len() == 0);
     assert_eq!(
         Ok(()),
-        queues.schedules_ok(
-            &CanisterId::unchecked_from_principal(PrincipalId::new_anonymous()),
-            &BTreeMap::new(),
-        )
+        queues.schedules_ok(&|_| InputQueueType::RemoteSubnet)
     );
 }
 
@@ -1255,24 +1275,14 @@ fn test_push_into_empty_queue_in_input_schedule() {
     // Time out all messages.
     fixture.time_out_all_messages_with_deadlines();
     assert_eq!(Ok(()), fixture.queues.test_invariants());
-    assert_eq!(
-        Ok(()),
-        fixture
-            .queues
-            .schedules_ok(&fixture.this, &BTreeMap::default())
-    );
+    assert_eq!(Ok(()), fixture.schedules_ok());
     assert!(!fixture.has_input());
 
     // Also garbage collect the empty queue pairs, for good measure.
     fixture.queues.garbage_collect();
     assert!(fixture.queues.canister_queues.is_empty());
     assert_eq!(Ok(()), fixture.queues.test_invariants());
-    assert_eq!(
-        Ok(()),
-        fixture
-            .queues
-            .schedules_ok(&fixture.this, &BTreeMap::default())
-    );
+    assert_eq!(Ok(()), fixture.schedules_ok());
     assert!(!fixture.has_input());
 
     // Push another round of messages into the 2 queues.
@@ -1283,12 +1293,7 @@ fn test_push_into_empty_queue_in_input_schedule() {
         .push_input_request_with_deadline(other_2, coarse_time(1), RemoteSubnet)
         .unwrap();
 
-    assert_eq!(
-        Ok(()),
-        fixture
-            .queues
-            .schedules_ok(&fixture.this, &BTreeMap::default())
-    );
+    assert_eq!(Ok(()), fixture.schedules_ok());
     assert!(fixture.has_input());
 
     assert!(fixture.pop_input().is_some());
@@ -1371,8 +1376,7 @@ fn test_peek_canister_input_does_not_affect_schedule() {
     push_requests(&mut queues, RemoteSubnet, &remote_requests);
 
     // Schedules before peek.
-    let before_local_schedule = queues.local_subnet_input_schedule.clone();
-    let before_remote_schedule = queues.remote_subnet_input_schedule.clone();
+    let input_schedule_before = queues.input_schedule.clone();
 
     assert_eq!(
         queues.peek_canister_input(RemoteSubnet).unwrap(),
@@ -1384,8 +1388,7 @@ fn test_peek_canister_input_does_not_affect_schedule() {
     );
 
     // Schedules are not changed.
-    assert_eq!(queues.local_subnet_input_schedule, before_local_schedule);
-    assert_eq!(queues.remote_subnet_input_schedule, before_remote_schedule);
+    assert_eq!(input_schedule_before, queues.input_schedule);
     assert_eq!(
         queues
             .canister_queues
@@ -1437,12 +1440,12 @@ fn test_skip_canister_input() {
         queues.peek_canister_input(RemoteSubnet).unwrap(),
         CanisterInput::Request(Arc::new(remote_requests.get(1).unwrap().clone()))
     );
-    assert_eq!(queues.remote_subnet_input_schedule.len(), 2);
+    assert_eq!(queues.input_schedule.remote_sender_schedule().len(), 2);
     assert_eq!(
         queues.peek_canister_input(LocalSubnet).unwrap(),
         CanisterInput::Request(Arc::new(local_requests.get(1).unwrap().clone()))
     );
-    assert_eq!(queues.local_subnet_input_schedule.len(), 2);
+    assert_eq!(queues.input_schedule.local_sender_schedule().len(), 2);
     assert_eq!(
         queues
             .canister_queues
@@ -1557,7 +1560,7 @@ fn decode_invalid_input_schedule() {
 
     let mut encoded: pb_queues::CanisterQueues = (&queues).into();
     // Wipe the input schedule.
-    encoded.local_subnet_input_schedule.clear();
+    encoded.local_sender_schedule.clear();
 
     // Decoding should succeed.
     let metrics = CountingMetrics(RefCell::new(0));
@@ -1565,25 +1568,21 @@ fn decode_invalid_input_schedule() {
         CanisterQueues::try_from((encoded, &metrics as &dyn CheckpointLoadingMetrics)).unwrap();
     // Even though the input schedules are not valid.
     assert_matches!(
-        decoded.schedules_ok(
-            &CanisterId::unchecked_from_principal(PrincipalId::new_anonymous()),
-            &BTreeMap::new(),
-        ),
+        decoded.schedules_ok(&|sender| {
+            if sender == &this {
+                InputQueueType::LocalSubnet
+            } else {
+                InputQueueType::RemoteSubnet
+            }
+        }),
         Err(_)
     );
     assert_eq!(1, *metrics.0.borrow());
 
-    // If we replace the input schedules with the original ones, the rest should be
-    // equal.
+    // If we enqueue `this` into the local sender queue, the rest should be equal.
     decoded
-        .local_subnet_input_schedule
-        .clone_from(&queues.local_subnet_input_schedule);
-    decoded
-        .remote_subnet_input_schedule
-        .clone_from(&queues.remote_subnet_input_schedule);
-    decoded
-        .input_schedule_canisters
-        .clone_from(&queues.input_schedule_canisters);
+        .input_schedule
+        .schedule(this, InputQueueType::LocalSubnet);
     assert_eq!(queues, decoded);
 }
 
@@ -1691,18 +1690,15 @@ fn decode_backward_compatibility() {
         queue: Some((&oq1).into()),
     });
     queues_proto
-        .local_subnet_input_schedule
+        .local_sender_schedule
         .push(local_canister.into());
     queues_proto.guaranteed_response_memory_reservations += 2;
     expected_queues
         .canister_queues
         .insert(local_canister, (expected_iq1, expected_oq1));
     expected_queues
-        .local_subnet_input_schedule
-        .push_back(local_canister);
-    expected_queues
-        .input_schedule_canisters
-        .insert(local_canister);
+        .input_schedule
+        .schedule(local_canister, InputQueueType::LocalSubnet);
 
     //
     // `remote_canister`'s queues.
@@ -2387,8 +2383,8 @@ fn test_garbage_collect() {
 
     // Push input response.
     queues.push_input(response.into(), LocalSubnet).unwrap();
-    // Before popping any input, `queue.next_input_queue` has default value.
-    assert_eq!(NextInputQueue::default(), queues.next_input_queue);
+    // Before popping any input, `queue.next_input_source` has default value.
+    assert_eq!(InputSource::default(), queues.input_schedule.input_source());
     // No-op.
     queues.garbage_collect();
     // Still one queue pair.
@@ -2397,8 +2393,8 @@ fn test_garbage_collect() {
 
     // "Process" response.
     queues.pop_input();
-    // After having popped an input, `next_input_queue` has advanced.
-    assert_ne!(NextInputQueue::default(), queues.next_input_queue);
+    // After having popped an input, `next_input_source` has advanced.
+    assert_ne!(InputSource::default(), queues.input_schedule.input_source());
     // No more inputs, but we still have the queue pair.
     assert!(!queues.has_input());
     assert_eq!(1, queues.canister_queues.len());
@@ -2424,7 +2420,7 @@ fn test_garbage_collect_restores_defaults() {
     // Push and pop an ingress message.
     queues.push_ingress(IngressBuilder::default().receiver(this).build());
     assert!(queues.pop_input().is_some());
-    // `next_input_queue` has now advanced to `RemoteSubnet`.
+    // `next_input_source` has now advanced to `RemoteSubnet`.
     assert_ne!(CanisterQueues::default(), queues);
 
     // But `garbage_collect()` should restore the struct to its default value.
@@ -3018,14 +3014,15 @@ fn time_out_messages_pushes_correct_reject_responses() {
     // Check that subnet input schedules contain the relevant canister IDs exactly once.
     assert_eq!(
         canister_queues
-            .local_subnet_input_schedule
+            .input_schedule
+            .local_sender_schedule()
             .iter()
             .collect::<BTreeSet<_>>(),
         btreeset! {&own_canister_id, &local_canister_id}
     );
     assert_eq!(
-        canister_queues.remote_subnet_input_schedule,
-        VecDeque::from(vec![remote_canister_id]),
+        canister_queues.input_schedule.remote_sender_schedule(),
+        &VecDeque::from(vec![remote_canister_id]),
     );
 
     let current_time = t1 + REQUEST_LIFETIME + Duration::from_secs(1);
@@ -3042,13 +3039,15 @@ fn time_out_messages_pushes_correct_reject_responses() {
     assert_eq!(0, message_stats.outbound_message_count);
     // Check that timing out twice does not lead to duplicate entries in subnet input schedules.
     assert_eq!(
-        canister_queues.remote_subnet_input_schedule,
-        VecDeque::from(vec![remote_canister_id]),
+        canister_queues.input_schedule.remote_sender_schedule(),
+        &VecDeque::from(vec![remote_canister_id]),
     );
     assert_eq!(Ok(()), canister_queues.test_invariants());
     assert_eq!(
         Ok(()),
-        canister_queues.schedules_ok(&own_canister_id, &BTreeMap::new())
+        canister_queues.schedules_ok(&input_queue_type_from_local_canisters(vec![
+            own_canister_id
+        ]))
     );
 }
 
