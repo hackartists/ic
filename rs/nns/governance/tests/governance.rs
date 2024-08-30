@@ -125,6 +125,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+#[cfg(feature = "tla")]
+use ic_nns_governance::governance::tla;
+
 /// The 'fake' module is the old scheme for providing NNS test fixtures, aka
 /// the FakeDriver. It is being used here until the older tests have been
 /// ported to the new 'fixtures' module.
@@ -5094,6 +5097,9 @@ fn test_neuron_split_fails() {
     assert_eq!(gov.neuron_store.heap_neurons().len(), 1);
     //  There is still only one ledger account.
     driver.assert_num_neuron_accounts_exist(1);
+
+    #[cfg(feature = "tla")]
+    tla::check_traces();
 }
 
 #[test]
@@ -5197,6 +5203,9 @@ fn test_neuron_split() {
     let mut expected_neuron_ids = vec![id, child_nid];
     expected_neuron_ids.sort_unstable();
     assert_eq!(neuron_ids, expected_neuron_ids);
+
+    #[cfg(feature = "tla")]
+    tla::check_traces();
 }
 
 #[test]
@@ -5270,6 +5279,9 @@ fn test_seed_neuron_split() {
     assert_eq!(child_neuron.dissolve_state, parent_neuron.dissolve_state);
     assert_eq!(child_neuron.kyc_verified, true);
     assert_eq!(child_neuron.neuron_type, Some(NeuronType::Seed as i32));
+
+    #[cfg(feature = "tla")]
+    tla::check_traces();
 }
 
 // Spawn neurons has the least priority in the periodic tasks, so we need to run

@@ -77,6 +77,14 @@ where
     account_id: NeuronAccountIdIndex<Memory>,
 }
 
+#[cfg(feature = "test")]
+impl<M: ic_stable_structures::Memory> StableNeuronIndexes<M> {
+    #[allow(dead_code)]
+    pub fn subaccounts(&self) -> &NeuronSubaccountIndex<M> {
+        &self.subaccount
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct CorruptedNeuronIndexes {
     pub neuron_id: NeuronId,
