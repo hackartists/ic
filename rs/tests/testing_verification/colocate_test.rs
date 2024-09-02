@@ -189,10 +189,15 @@ cd /home/admin
 tar -xf /home/admin/{RUNFILES_TAR_ZST} --one-top-level=runfiles
 tar -xf /home/admin/{ENV_TAR_ZST} --one-top-level=root_env
 
-docker load -i /config/image.tar
+# read the digest produced by the load so we can create a container with
+# this image
+image_sha=$(docker load -i /config/image.tar | grep -oE 'sha256:\S+')
 
-cat <<EOF > /home/admin/Dockerfile
-FROM bazel/image:image
+# Use a dummy tag so we can refer to it in the Dockerfile
+docker tag "$image_sha" colocateimage
+
+cat <<'EOF' > /home/admin/Dockerfile
+FROM colocateimage
 COPY runfiles /home/root/runfiles
 COPY root_env /home/root/root_env
 RUN chmod 700 /home/root/root_env/{SSH_AUTHORIZED_PRIV_KEYS_DIR}

@@ -3,15 +3,16 @@
 function load() {
     NAME=$1
 
-    # Load image
-    docker load -i "/config/${NAME}.tar"
+    # read the digest produced by the load so we can create a container with
+    # this image
+    image_sha=$(docker load -i "/config/${NAME}.tar" | grep -oE 'sha256:\S+')
 
     # Rename image
     docker tag \
-        bazel/image:image "${NAME}"
+        "$image_sha" "${NAME}"
 
     # Remove temporary image
-    docker rmi bazel/image:image
+    docker rmi "$image_sha"
 }
 
 load coredns

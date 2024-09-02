@@ -74,13 +74,13 @@ The load the image in docker
 ```
 $ docker load -i <bazel_path_to>/rosetta_image.tar
 ...
-Loaded image(s): localhost/bazel/rs/rosetta-api:rosetta_image
+Loaded image(s): <image sha>
 ```
 
 Finally run the image
 
 ```
-$ docker run localhost/bazel/rs/rosetta-api:rosetta_image
+$ docker run <image sha>
 ```
 
 Remember to mount `/home/rosetta/log` and `/data` to persist logs and data after shutting down the docker container.

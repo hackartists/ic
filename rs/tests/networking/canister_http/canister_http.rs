@@ -135,8 +135,10 @@ pub fn start_httpbin_on_uvm(env: &TestEnv) {
         chmod -R 755 ./
 
         echo "Making certs directory in $(pwd) ..."
-        docker load -i /config/minica.tar
-        docker tag bazel/image:image minica
+        # read the digest produced by the load so we can create a container with
+        # this image
+        image_sha=$(docker load -i /config/minica.tar | grep -oE 'sha256:\S+')
+        docker tag "$image_sha" minica
         docker run \
             -v "$(pwd)":/output \
             minica \
