@@ -5181,6 +5181,7 @@ impl Governance {
         create_service_nervous_system: &CreateServiceNervousSystem,
     ) -> Result<(), GovernanceError> {
         // Must be able to convert to a valid SnsInitPayload.
+        // TODO this should only be happening here!
         let conversion_result = SnsInitPayload::try_from(create_service_nervous_system.clone());
         if let Err(err) = conversion_result {
             return Err(GovernanceError::new_with_message(

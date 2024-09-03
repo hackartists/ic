@@ -73,9 +73,11 @@ fn divide_perfectly(field_name: &str, dividend: u64, divisor: u64) -> Result<u64
     }
 }
 
+// CreateServiceNervousSystem - should be internal type?
 impl TryFrom<CreateServiceNervousSystem> for SnsInitPayload {
     type Error = String;
 
+    // This validation should just be put into separate function
     fn try_from(src: CreateServiceNervousSystem) -> Result<Self, String> {
         let CreateServiceNervousSystem {
             name,
