@@ -75,7 +75,7 @@ rust_library(
 
 PACKAGES = [
     "@focal//ca-certificates/amd64",
-    "@focal//curl/amd64",
+    "@focal//curl/amd64",  # TODO: remove
     "@focal//dosfstools/amd64",
     "@focal//libssl1.1/amd64",
     "@focal//libunwind8/amd64",
@@ -114,8 +114,8 @@ oci_image(
 uvm_config_image(
     name = "colocate_uvm_config_image",
     srcs = [
+        ":ubuntu_test_runtime_image",
         "//rs/tests:activate-systest-uvm-config",
-        "@ubuntu_test_runtime",
     ],
     remap_paths = {
         "activate-systest-uvm-config": "activate",

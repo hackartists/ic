@@ -1,6 +1,8 @@
 #load("@io_bazel_rules_docker//container:container.bzl", "container_image", "container_push")
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@rules_distroless//distroless:defs.bzl", "passwd")
-load("@rules_oci//oci:defs.bzl", "oci_image")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 package(default_visibility = ["//rs:system-tests-pkg"])
@@ -28,6 +30,12 @@ rust_binary(
         "//rs/pocket_ic_server:__pkg__",
     ],
     deps = DEPENDENCIES,
+)
+
+pkg_tar(
+    name = "httpbin_image_homedir",
+    srcs = [":httpbin"],
+    package_dir = "/home/httpbin",
 )
 
 ## Create a layer with a httpbin user
@@ -58,7 +66,7 @@ passwd(
 
 oci_image(
     name = "httpbin_image_base",
-    base = "@ubuntu_test_runtime//:ubuntu_test_runtime",
+    base = "//rs/tests:ubuntu_test_runtime_image",
     tags = ["manual"],
     target_compatible_with = [
         "@platforms//os:linux",
@@ -70,6 +78,40 @@ oci_image(
 
 # TODO: do we really publish it?
 ## The final image we can publish.
+
+oci_image(
+    name = "httpbin_image_foo",
+    base = ":httpbin_image_base",
+    entrypoint = ["/home/httpbin/httpbin"],
+    tags = ["manual"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
+    tars = [":httpbin_image_homedir"],
+    user = "httpbin",
+    workdir = "/home/httpbin",
+)
+
+oci_load(
+    name = "httpbin_image_load",
+    image = ":httpbin_image_foo",
+    repo_tags = ["bazel/rs/tests/httpbin-rs:httpbin_image"],
+)
+
+filegroup(
+    name = "httpbin_image_.tar",
+    srcs = [":httpbin_image_load"],
+    output_group = "tarball",
+)
+
+copy_file(
+    name = "httpbin_image",
+    src = ":httpbin_image_.tar",
+    out = "httpbin_image.tar",
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
+)
 
 #container_image(
 #    name = "httpbin_image",

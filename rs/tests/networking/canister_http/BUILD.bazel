@@ -34,7 +34,7 @@ uvm_config_image(
         ":universal_vm_activation.sh",
         "//ic-os/components:networking/dev-certs/canister_http_test_ca.cert",
         "//ic-os/components:networking/dev-certs/canister_http_test_ca.key",
-        "//rs/tests/httpbin-rs:httpbin_image.tar",
+        "//rs/tests/httpbin-rs:httpbin_image",
     ],
     remap_paths = {
         "universal_vm_activation.sh": "activate",
@@ -45,14 +45,20 @@ uvm_config_image(
 )
 
 oci_load(
-    name = "minica_image_foo",
+    name = "minica_image_load",
     image = "@minica",
-    repo_tags = [],
+    repo_tags = ["bazel/image:image"],
+)
+
+filegroup(
+    name = "minica_image.tar",
+    srcs = [":minica_image_load"],
+    output_group = "tarball",
 )
 
 copy_file(
     name = "minica_image",
-    src = ":minica_image_foo",
+    src = ":minica_image.tar",
     out = "minica.tar",
     target_compatible_with = [
         "@platforms//os:linux",

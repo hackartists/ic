@@ -71,6 +71,8 @@ $ bazel cquery //rs/rosetta-api:rosetta_image.tar --output=files
 
 The load the image in docker
 
+TODO: fix image label
+
 ```
 $ docker load -i <bazel_path_to>/rosetta_image.tar
 ...
