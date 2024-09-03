@@ -280,7 +280,7 @@ oci_image(
 oci_load(
     name = "rosetta_image_foo",
     image = ":rosetta_image",
-    repo_tags = [],
+    repo_tags = ["foo:latest"],
 )
 
 filegroup(

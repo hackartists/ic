@@ -306,24 +306,6 @@ oci_pull(
     platforms = ["linux/amd64"],
 )
 
-# This image was built with bazel (bazel build //rs/tests:ubuntu_test_runtime_image)
-# then uploaded to our GitLab registry using:
-#
-#  $ bazel build //rs/tests:ubuntu_test_runtime_image
-#  $ docker login registry.gitlab.com
-#  $ docker load -i bazel-bin/rs/tests/ubuntu_test_runtime_image.tar
-#  $ docker tag ubuntu_test_runtime_image:latest "registry.gitlab.com/dfinity-lab/open/public-docker-registry/ubuntu_test_runtime_image:latest"
-#  $ docker image push  "registry.gitlab.com/dfinity-lab/open/public-docker-registry/ubuntu_test_runtime_image:latest"
-#
-# The reason we can't directly depend on //rs/tests:ubuntu_test_runtime_image is that
-# the target //rs/tests/httpbin-rs:httpbin_image_base
-# fails to build in our container (gitlab-ci/container/container-run.sh).
-oci_pull(
-    name = "ubuntu_test_runtime",
-    image = "registry.gitlab.com/dfinity-lab/open/public-docker-registry/ubuntu_test_runtime_image@sha256:d5b2f17ee8fcd45b4f1580893680b78a540f491e647a9f6971bdaab393e372f7",
-    platforms = ["linux/amd64"],
-)
-
 # Third party dependencies that require special treatment
 
 lmdb_repository()
