@@ -1,6 +1,6 @@
-load("@io_bazel_rules_docker//container:container.bzl", "container_image")
-load("@io_bazel_rules_docker//contrib:passwd.bzl", "passwd_entry", "passwd_file")
-load("@rules_pkg//:pkg.bzl", "pkg_tar")
+#load("@io_bazel_rules_docker//container:container.bzl", "container_image", "container_push")
+load("@rules_distroless//distroless:defs.bzl", "passwd")
+load("@rules_oci//oci:defs.bzl", "oci_image")
 load("@rules_rust//rust:defs.bzl", "rust_binary")
 
 package(default_visibility = ["//rs:system-tests-pkg"])
@@ -32,65 +32,59 @@ rust_binary(
 
 ## Create a layer with a httpbin user
 
-passwd_entry(
-    name = "root_user",
-    uid = 0,
-    username = "root",
-)
-
-passwd_entry(
-    name = "httpbin_user",
-    home = "/home/httpbin",
-    info = "httpbin user",
-    uid = 1002,
-    username = "httpbin",
-)
-
-passwd_file(
+passwd(
     name = "passwd",
     entries = [
-        ":httpbin_user",
-        ":root_user",
+        dict(
+            gecos = ["root"],
+            gid = 0,
+            home = "/root",
+            shell = "/usr/bin/bash",
+            uid = 0,
+            username = "root",
+        ),
+        dict(
+            gecos = ["httpbin_user"],
+            gid = 1002,
+            home = "/home/httpbin",
+            shell = "/usr/bin/bash",
+            uid = 1002,
+            username = "httpbin",
+        ),
     ],
-)
-
-pkg_tar(
-    name = "passwd_tar",
-    srcs = [":passwd"],
-    mode = "0644",
-    package_dir = "etc",
 )
 
 ## An intermediate image with the passwd file and empty directories.
 
-container_image(
+oci_image(
     name = "httpbin_image_base",
-    base = "@ubuntu_test_runtime//image",
+    base = "@ubuntu_test_runtime//:ubuntu_test_runtime",
     tags = ["manual"],
     target_compatible_with = [
         "@platforms//os:linux",
     ],
     tars = [
-        ":passwd_tar",
+        ":passwd",
     ],
 )
 
+# TODO: do we really publish it?
 ## The final image we can publish.
 
-container_image(
-    name = "httpbin_image",
-    base = ":httpbin_image_base",
-    directory = "/home/httpbin",
-    entrypoint = [
-        "/home/httpbin/httpbin",
-    ],
-    files = [
-        ":httpbin",
-    ],
-    tags = ["manual"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-    user = "httpbin",
-    workdir = "/home/httpbin",
-)
+#container_image(
+#    name = "httpbin_image",
+#    base = ":httpbin_image_base",
+#    directory = "/home/httpbin",
+#    entrypoint = [
+#        "/home/httpbin/httpbin",
+#    ],
+#    files = [
+#        ":httpbin",
+#    ],
+#    tags = ["manual"],
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#    user = "httpbin",
+#    workdir = "/home/httpbin",
+#)
