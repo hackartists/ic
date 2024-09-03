@@ -200,9 +200,9 @@ exports_files([
 uvm_config_image(
     name = "btc_uvm_config_image",
     srcs = [
+        ":bitcoind_image",
         ":src/btc_integration/bitcoin.conf",
         ":src/btc_integration/btc_activate.sh",
-        "@bitcoind",
     ],
     remap_paths = {
         "btc_activate.sh": "activate",
@@ -219,7 +219,7 @@ uvm_config_image(
     srcs = [
         # ":src/btc_integration/bitcoin.conf",
         ":src/jaeger/jaeger_activate.sh",
-        "@jaeger",
+        ":jaeger_image",
     ],
     remap_paths = {
         "jaeger_activate.sh": "activate",
@@ -306,14 +306,62 @@ symlink_dirs(
 )
 
 oci_load(
+    name = "jaeger_image_load",
+    image = "@jaeger",
+    repo_tags = ["jaegertracing/all-in-one:1.58"],  # TODO: fix this
+)
+
+filegroup(
+    name = "jaeger_image.tar",
+    srcs = [":jaeger_image_load"],
+    output_group = "tarball",
+)
+
+copy_file(
+    name = "jaeger_image",
+    src = ":jaeger_image.tar",
+    out = "jaeger.tar",  # TODO: check jaeger_activate changes
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
+)
+
+oci_load(
+    name = "bitcoind_image_load",
+    image = "@bitcoind",
+    repo_tags = ["bazel/image:image"],
+)
+
+filegroup(
+    name = "bitcoind_image.tar",
+    srcs = [":bitcoind_image_load"],
+    output_group = "tarball",
+)
+
+copy_file(
+    name = "bitcoind_image",
+    src = ":bitcoind_image.tar",
+    out = "image.tar",  # TODO: btc activate expects this (*sigh*)
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
+)
+
+oci_load(
     name = "coredns_image_foo",
     image = "@coredns",
     repo_tags = [],
 )
 
+filegroup(
+    name = "coredns_image_foo.tar",
+    srcs = [":coredns_image_foo"],
+    output_group = "tarball",
+)
+
 copy_file(
     name = "coredns_image",
-    src = ":coredns_image_foo",
+    src = ":coredns_image_foo.tar",
     out = "coredns.tar",
     target_compatible_with = [
         "@platforms//os:linux",
