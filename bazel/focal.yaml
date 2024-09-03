@@ -25,6 +25,8 @@ archs:
 packages:
   - "ca-certificates"
   - "curl"
+  - "coreutils" # for chmod
+  - "gawk" # for build-bootstrap-config-image
   - "dosfstools"
   - "libssl1.1"
   - "libunwind8"
@@ -35,4 +37,5 @@ packages:
   # for apt list --installed
   - "dpkg"
   - "apt"
+  - "bash"
   - "perl"

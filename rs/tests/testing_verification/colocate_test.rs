@@ -189,7 +189,7 @@ cd /home/admin
 tar -xf /home/admin/{RUNFILES_TAR_ZST} --one-top-level=runfiles
 tar -xf /home/admin/{ENV_TAR_ZST} --one-top-level=root_env
 
-docker load -i /config/image.tar
+docker load -i /config/ubuntu.tar
 
 cat <<EOF > /home/admin/Dockerfile
 FROM bazel/image:image
@@ -198,7 +198,10 @@ COPY root_env /home/root/root_env
 RUN chmod 700 /home/root/root_env/{SSH_AUTHORIZED_PRIV_KEYS_DIR}
 RUN chmod 600 /home/root/root_env/{SSH_AUTHORIZED_PRIV_KEYS_DIR}/*
 EOF
-docker build --tag final .
+
+echo "building"
+docker build --tag final . 2>&1
+echo "done"
 
 cat <<'EOF' > /home/admin/run
 #!/bin/sh

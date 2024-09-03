@@ -1,3 +1,4 @@
+load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
@@ -75,6 +76,9 @@ rust_library(
 
 PACKAGES = [
     "@focal//ca-certificates/amd64",
+    "@focal//bash/amd64",
+    "@focal//coreutils/amd64",
+    "@focal//gawk/amd64",
     "@focal//curl/amd64",  # TODO: remove
     "@focal//dosfstools/amd64",
     "@focal//libssl1.1/amd64",
@@ -84,6 +88,22 @@ PACKAGES = [
     "@focal//rsync/amd64",
     "@focal//zstd/amd64",
 ]
+
+tar(
+    name = "sh",
+    mtree = [
+        # needed as dpkg assumes sh is installed in a typical debian installation.
+        "./bin/sh type=link link=/bin/bash",
+    ],
+)
+
+tar(
+    name = "awk",
+    mtree = [
+        # needed as dpkg assumes sh is installed in a typical debian installation.
+        "./bin/awk type=link link=/usr/bin/gawk",
+    ],
+)
 
 # Creates /var/lib/dpkg/status with installed package information.
 dpkg_status(
@@ -95,7 +115,7 @@ dpkg_status(
 )
 
 oci_image(
-    name = "ubuntu_test_runtime_image",
+    name = "ubuntu_test_runtime_image_foo",
     architecture = "amd64",
     os = "linux",
     target_compatible_with = [
@@ -105,16 +125,38 @@ oci_image(
     tars = [
         ":dpkg_status",
         # TODO: do we need passwd, etc?
-        #":sh",
+        ":sh",
+        ":awk",
         #":passwd",
         #":group",
     ] + PACKAGES,
 )
 
+oci_load(
+    name = "ubuntu_test_runtime_image_image_load",
+    image = ":ubuntu_test_runtime_image_foo",
+    repo_tags = ["bazel/image:image"],
+)
+
+filegroup(
+    name = "ubuntu_test_runtime_image_image.tar",
+    srcs = [":ubuntu_test_runtime_image_image_load"],
+    output_group = "tarball",
+)
+
+copy_file(
+    name = "ubuntu_test_runtime_image_image",
+    src = ":ubuntu_test_runtime_image_image.tar",
+    out = "ubuntu.tar",  # TODO: colocate_test.rs expects this (*sigh*)
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
+)
+
 uvm_config_image(
     name = "colocate_uvm_config_image",
     srcs = [
-        ":ubuntu_test_runtime_image",
+        ":ubuntu_test_runtime_image_image",
         "//rs/tests:activate-systest-uvm-config",
     ],
     remap_paths = {
