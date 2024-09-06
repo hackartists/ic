@@ -3,32 +3,6 @@ use ic_nervous_system_proto::pb::v1::{Duration, GlobalTimeOfDay};
 use ic_sns_init::pb::v1::{self as sns_init_pb, sns_init_payload, SnsInitPayload};
 
 impl CreateServiceNervousSystem {
-    pub fn sns_token_e8s(&self) -> Option<u64> {
-        self.initial_token_distribution
-            .as_ref()?
-            .swap_distribution
-            .as_ref()?
-            .total
-            .as_ref()?
-            .e8s
-    }
-
-    pub fn transaction_fee_e8s(&self) -> Option<u64> {
-        self.ledger_parameters
-            .as_ref()?
-            .transaction_fee
-            .as_ref()?
-            .e8s
-    }
-
-    pub fn neuron_minimum_stake_e8s(&self) -> Option<u64> {
-        self.governance_parameters
-            .as_ref()?
-            .neuron_minimum_stake
-            .as_ref()?
-            .e8s
-    }
-
     /// Computes timestamps for when the SNS token swap will start, and will be
     /// due, based on the start and end times.
     ///
