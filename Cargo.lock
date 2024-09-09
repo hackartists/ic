@@ -11432,6 +11432,7 @@ dependencies = [
  "ic-nns-common",
  "ic-nns-constants",
  "ic-nns-governance",
+ "ic-nns-governance-api",
  "ic-sns-governance",
  "ic-sns-init",
  "ic-sns-root",
