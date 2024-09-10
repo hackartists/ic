@@ -103,6 +103,7 @@ class SlackFindingsFailoverDataStore(FindingsFailoverDataStore):
         return is_failover_finding
 
     def store_findings(self, repository: str, scanner: str, current_findings: List[Finding]):
+        logging.debug(f"store_findings called with findings {current_findings}")
         vuln_by_vuln_id: Dict[str, VulnerabilityInfo] = {}
         projects: Set[str] = set()
 
@@ -122,6 +123,7 @@ class SlackFindingsFailoverDataStore(FindingsFailoverDataStore):
                 del vuln_by_vuln_id[vid]
 
         slack_vuln_by_vuln_id = self.slack_loader.load_findings()
+        logging.debug(f"findings loaded {slack_vuln_by_vuln_id.keys()}")
         for vuln_info in slack_vuln_by_vuln_id.values():
             for finding in vuln_info.finding_by_id.values():
                 projects.update(finding.projects)
