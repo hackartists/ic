@@ -21,7 +21,7 @@ SLACK_CHANNEL_CONFIG_BY_TEAM = {Team.NODE_TEAM: SlackChannelConfig(channel_id="C
                                 Team.BOUNDARY_NODE_TEAM: SlackChannelConfig(channel_id="C06KQKZ3EBW", channel="#eng-boundary-nodes-psec")}
 SLACK_TEAM_GROUP_ID = {Team.NODE_TEAM: "<!subteam^S05FTRNRC5A>", Team.BOUNDARY_NODE_TEAM: "<!subteam^S0313LYB9FZ>"}
 
-SLACK_LOG_TO_CONSOLE = False
+SLACK_LOG_TO_CONSOLE = True
 
 SLACK_OAUTH_TOKEN = os.environ.get("SLACK_PSEC_BOT_OAUTH_TOKEN")
 if SLACK_OAUTH_TOKEN is None:
