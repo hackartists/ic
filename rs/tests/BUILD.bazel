@@ -98,6 +98,15 @@ tar(
 )
 
 tar(
+    name = "mkfsvfat",
+    mtree = [
+        # needed as dpkg assumes sh is installed in a typical debian installation.
+        "./bin/mkfs.vfat type=link link=/sbin/mkfs.vfat",
+    ],
+)
+
+
+tar(
     name = "awk",
     mtree = [
         # needed as dpkg assumes sh is installed in a typical debian installation.
@@ -126,6 +135,7 @@ oci_image(
         ":dpkg_status",
         # TODO: do we need passwd, etc?
         ":sh",
+        ":mkfsvfat",
         ":awk",
         #":passwd",
         #":group",
