@@ -21,7 +21,7 @@ use ic_system_test_driver::driver::test_env::{TestEnv, TestEnvAttribute};
 use ic_system_test_driver::driver::test_env_api::{get_dependency_path, FarmBaseUrl, SshSession};
 use ic_system_test_driver::driver::test_setup::GroupSetup;
 use ic_system_test_driver::driver::universal_vm::{DeployedUniversalVm, UniversalVm, UniversalVms};
-use slog::{debug, error, info, Logger};
+use slog::{error, info, Logger};
 use ssh2::Session;
 
 const UVM_NAME: &str = "test-driver";
