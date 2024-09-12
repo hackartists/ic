@@ -1,5 +1,6 @@
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@rules_distroless//distroless:defs.bzl", "passwd")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
 load("@rules_distroless//apt:defs.bzl", "dpkg_status")
@@ -123,6 +124,28 @@ dpkg_status(
     ],
 )
 
+passwd(
+    name = "passwd",
+    entries = [
+        dict(
+            gecos = ["root"],
+            gid = 0,
+            home = "/root",
+            shell = "/usr/bin/bash",
+            uid = 0,
+            username = "root",
+        ),
+        dict(
+            gecos = ["httpbin_user"],
+            gid = 1002,
+            home = "/home/httpbin",
+            shell = "/usr/bin/bash",
+            uid = 1002,
+            username = "httpbin",
+        ),
+    ],
+)
+
 oci_image(
     name = "ubuntu_test_runtime_image_foo",
     architecture = "amd64",
@@ -137,7 +160,7 @@ oci_image(
         ":sh",
         ":mkfsvfat",
         ":awk",
-        #":passwd",
+        ":passwd",
         #":group",
     ] + PACKAGES,
 )

@@ -154,24 +154,24 @@ fn setup(env: TestEnv) {
     );
 
     {
-    let tmpdir = tempfile::tempdir().expect("Could not create tempdir");
-    let filepath = tmpdir.path().join("env");
-    let mut file = File::create(filepath.clone()).expect("Could not create tempfile");
+        let tmpdir = tempfile::tempdir().expect("Could not create tempdir");
+        let filepath = tmpdir.path().join("env");
+        let mut file = File::create(filepath.clone()).expect("Could not create tempfile");
 
-    let output = Command::new("env")
-        .env("BASH_FUNC_rlocation%%","")
-        .env("BASH_FUNC_is_absolute%%","")
-        .output()
-        .unwrap_or_else(|e| panic!("Failed to list env: {e}"));
+        let output = Command::new("env")
+            .env("BASH_FUNC_rlocation%%", "")
+            .env("BASH_FUNC_is_absolute%%", "")
+            .output()
+            .unwrap_or_else(|e| panic!("Failed to list env: {e}"));
 
-    file.write_all(&output.stdout).expect("Could not write env");
+        file.write_all(&output.stdout).expect("Could not write env");
 
-    scp(
-        log.clone(),
-        &session,
-        filepath,
-        Path::new("/home/admin/env_vars").to_path_buf(),
-    );
+        scp(
+            log.clone(),
+            &session,
+            filepath,
+            Path::new("/home/admin/env_vars").to_path_buf(),
+        );
     };
 
     //let docker_env_vars = {
