@@ -36,6 +36,7 @@ packages:
   - "zstd"
   # for apt list --installed
   - "dpkg"
+  - "gzip" # for tar-ing up ic regsitry store in systests
   - "apt"
   - "bash"
   - "perl"

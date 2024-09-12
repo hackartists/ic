@@ -1,9 +1,9 @@
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("@rules_distroless//distroless:defs.bzl", "passwd")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
 load("@rules_distroless//apt:defs.bzl", "dpkg_status")
+load("@rules_distroless//distroless:defs.bzl", "passwd")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 
 #load("@io_bazel_rules_docker//docker/package_managers:download_pkgs.bzl", "download_pkgs")
@@ -87,6 +87,7 @@ PACKAGES = [
     "@focal//mtools/amd64",
     "@focal//openssh-client/amd64",
     "@focal//rsync/amd64",
+    "@focal//gzip/amd64",
     "@focal//zstd/amd64",
 ]
 
@@ -105,7 +106,6 @@ tar(
         "./bin/mkfs.vfat type=link link=/sbin/mkfs.vfat",
     ],
 )
-
 
 tar(
     name = "awk",
@@ -135,6 +135,7 @@ passwd(
             uid = 0,
             username = "root",
         ),
+	# TODO: remove
         dict(
             gecos = ["httpbin_user"],
             gid = 1002,
@@ -153,15 +154,14 @@ oci_image(
     target_compatible_with = [
         "@platforms//os:linux",
     ],
-    # TODO: add packages
     tars = [
         ":dpkg_status",
-        # TODO: do we need passwd, etc?
-        ":sh",
-        ":mkfsvfat",
+        ":passwd", # needed because we ssh in
+
+        # symlinks
         ":awk",
-        ":passwd",
-        #":group",
+        ":mkfsvfat",
+        ":sh",
     ] + PACKAGES,
 )
 
@@ -255,12 +255,18 @@ exports_files([
 oci_load(
     name = "static-file-server_image_foo",
     image = "@static-file-server",
-    repo_tags = [],
+    repo_tags = ["bazel/image:image"],
+)
+
+filegroup(
+    name = "static-file-server_image_foo.tar",
+    srcs = [":static-file-server_image_foo"],
+    output_group = "tarball",
 )
 
 copy_file(
     name = "static-file-server_image",
-    src = ":static-file-server_image_foo",
+    src = ":static-file-server_image_foo.tar",
     out = "static-file-server.tar",
     target_compatible_with = [
         "@platforms//os:linux",

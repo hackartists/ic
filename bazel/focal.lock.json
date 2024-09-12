@@ -1612,6 +1612,36 @@
 			"arch": "amd64",
 			"dependencies": [
 				{
+					"key": "libc6_2.31-0ubuntu9.14_amd64",
+					"name": "libc6",
+					"version": "2.31-0ubuntu9.14"
+				},
+				{
+					"key": "libcrypt1_1-4.4.10-10ubuntu4_amd64",
+					"name": "libcrypt1",
+					"version": "1:4.4.10-10ubuntu4"
+				},
+				{
+					"key": "libgcc-s1_10.5.0-1ubuntu1_20.04_amd64",
+					"name": "libgcc-s1",
+					"version": "10.5.0-1ubuntu1~20.04"
+				},
+				{
+					"key": "gcc-10-base_10.5.0-1ubuntu1_20.04_amd64",
+					"name": "gcc-10-base",
+					"version": "10.5.0-1ubuntu1~20.04"
+				}
+			],
+			"key": "gzip_1.10-0ubuntu4.1_amd64",
+			"name": "gzip",
+			"sha256": "218a588ffe646e69dcde814634cb85bcaad1486da4fa3060937ab12ef04fed9c",
+			"url": "https://snapshot.ubuntu.com/ubuntu/20240301T030400Z/pool/main/g/gzip/gzip_1.10-0ubuntu4.1_amd64.deb",
+			"version": "1.10-0ubuntu4.1"
+		},
+		{
+			"arch": "amd64",
+			"dependencies": [
+				{
 					"key": "libsystemd0_245.4-4ubuntu3.23_amd64",
 					"name": "libsystemd0",
 					"version": "245.4-4ubuntu3.23"
