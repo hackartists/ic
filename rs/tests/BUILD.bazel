@@ -135,7 +135,7 @@ passwd(
             uid = 0,
             username = "root",
         ),
-	# TODO: remove
+        # TODO: remove
         dict(
             gecos = ["httpbin_user"],
             gid = 1002,
@@ -156,7 +156,7 @@ oci_image(
     ],
     tars = [
         ":dpkg_status",
-        ":passwd", # needed because we ssh in
+        ":passwd",  # needed because we ssh in
 
         # symlinks
         ":awk",
