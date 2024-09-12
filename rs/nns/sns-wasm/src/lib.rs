@@ -5,4 +5,5 @@ pub mod pb;
 mod request_impls;
 pub mod sns_wasm;
 pub mod stable_memory;
+mod types;
 pub mod wasm_metadata;

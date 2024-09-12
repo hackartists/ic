@@ -4,7 +4,14 @@ pub mod ledger;
 pub mod root;
 pub mod swap;
 
+use anyhow::Result;
+use ic_agent::Agent;
+use ic_nns_constants::SNS_WASM_CANISTER_ID;
+use ic_sns_wasm::pb::v1::{ListUpgradeStepsRequest, ListUpgradeStepsResponse, SnsVersion};
 use serde::{Deserialize, Serialize};
+
+use crate::call;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Sns {
     pub ledger: ledger::LedgerCanister,
@@ -12,6 +19,18 @@ pub struct Sns {
     pub index: index::IndexCanister,
     pub swap: swap::SwapCanister,
     pub root: root::RootCanister,
+}
+
+impl Sns {
+    pub async fn remaining_upgrade_steps(&self, agent: &Agent) -> Result<ListUpgradeStepsResponse> {
+        let version = self.governance.version(agent).await?;
+        let list_upgrade_steps_request = ListUpgradeStepsRequest {
+            limit: 0,
+            sns_governance_canister_id: Some(self.governance.canister_id),
+            starting_at: version.deployed_version.map(SnsVersion::from),
+        };
+        call(agent, SNS_WASM_CANISTER_ID, list_upgrade_steps_request).await
+    }
 }
 
 impl TryFrom<ic_sns_wasm::pb::v1::DeployedSns> for Sns {

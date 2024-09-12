@@ -32,6 +32,7 @@ pub use icrc_ledger_types::icrc3::archive::ArchiveInfo;
 pub mod logs;
 pub mod pb;
 pub mod types;
+mod request_impls;
 
 const ONE_DAY_SECONDS: u64 = 24 * 60 * 60;
 // The number of dapp canisters that can be registered with the SNS Root

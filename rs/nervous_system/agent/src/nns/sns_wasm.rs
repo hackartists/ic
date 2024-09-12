@@ -15,7 +15,7 @@ use tokio::process::Command;
 
 use crate::call;
 
-pub async fn query_sns_upgrade_steps(agent: &Agent) -> Result<ListUpgradeStepsResponse> {
+pub async fn query_mainline_sns_upgrade_steps(agent: &Agent) -> Result<ListUpgradeStepsResponse> {
     let request = ListUpgradeStepsRequest {
         limit: 0,
         sns_governance_canister_id: None,
