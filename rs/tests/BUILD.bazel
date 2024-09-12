@@ -1,8 +1,13 @@
+load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
-load("@io_bazel_rules_docker//docker/package_managers:download_pkgs.bzl", "download_pkgs")
-load("@io_bazel_rules_docker//docker/package_managers:install_pkgs.bzl", "install_pkgs")
+load("@rules_distroless//apt:defs.bzl", "dpkg_status")
+load("@rules_distroless//distroless:defs.bzl", "passwd")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+
+#load("@io_bazel_rules_docker//docker/package_managers:download_pkgs.bzl", "download_pkgs")
+#load("@io_bazel_rules_docker//docker/package_managers:install_pkgs.bzl", "install_pkgs")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//bazel:defs.bzl", "symlink_dir", "symlink_dir_test", "symlink_dirs")
 load("//rs/tests:common.bzl", "DEPENDENCIES", "MACRO_DEPENDENCIES")
@@ -42,40 +47,151 @@ rust_library(
     deps = DEPENDENCIES,
 )
 
-download_pkgs(
-    name = "ubuntu_test_runtime_pkg",
-    additional_repos = [
-        "deb http://security.ubuntu.com/ubuntu focal-security main",
+#download_pkgs(
+#    name = "ubuntu_test_runtime_pkg",
+#    additional_repos = [
+#        "deb http://security.ubuntu.com/ubuntu focal-security main",
+#    ],
+#    image_tar = "@ubuntu_base//image",
+#    packages = [
+#        "ca-certificates",
+#        "curl",  # TODO: remove since this is for debugging
+#        "dosfstools",
+#        "libssl1.1",  # the test-driver depends on libssl1.1.
+#        "libunwind8",  # idem
+#        "mtools",
+#        "openssh-client",  # for ssh-keygen.
+#        "rsync",  # for //rs/tests/consensus/orchestrator:sr_app_same_nodes_test
+#        "zstd",  # for create-universal-vm-config-image.sh.
+#    ],
+#    tags = ["manual"],
+#)
+#
+#install_pkgs(
+#    name = "ubuntu_test_runtime_image",
+#    image_tar = "@ubuntu_base//:ubuntu_base",
+#    installables_tar = ":ubuntu_test_runtime_pkg.tar",
+#    installation_cleanup_commands = "rm -rf /var/lib/apt/lists/*",
+#    output_image_name = "ubuntu_test_runtime_image",
+#    tags = ["manual"],
+#)
+
+PACKAGES = [
+    "@focal//ca-certificates/amd64",
+    "@focal//bash/amd64",
+    "@focal//coreutils/amd64",
+    "@focal//gawk/amd64",
+    "@focal//curl/amd64",  # TODO: remove
+    "@focal//dosfstools/amd64",
+    "@focal//libssl1.1/amd64",
+    "@focal//libunwind8/amd64",
+    "@focal//mtools/amd64",
+    "@focal//openssh-client/amd64",
+    "@focal//rsync/amd64",
+    "@focal//gzip/amd64",
+    "@focal//zstd/amd64",
+]
+
+tar(
+    name = "sh",
+    mtree = [
+        # needed as dpkg assumes sh is installed in a typical debian installation.
+        "./bin/sh type=link link=/bin/bash",
     ],
-    image_tar = "@ubuntu_base//image",
-    packages = [
-        "ca-certificates",
-        "curl",  # TODO: remove since this is for debugging
-        "dosfstools",
-        "libssl1.1",  # the test-driver depends on libssl1.1.
-        "libunwind8",  # idem
-        "mtools",
-        "openssh-client",  # for ssh-keygen.
-        "rsync",  # for //rs/tests/consensus/orchestrator:sr_app_same_nodes_test
-        "zstd",  # for create-universal-vm-config-image.sh.
-    ],
-    tags = ["manual"],
 )
 
-install_pkgs(
-    name = "ubuntu_test_runtime_image",
-    image_tar = "@ubuntu_base//image",
-    installables_tar = ":ubuntu_test_runtime_pkg.tar",
-    installation_cleanup_commands = "rm -rf /var/lib/apt/lists/*",
-    output_image_name = "ubuntu_test_runtime_image",
-    tags = ["manual"],
+tar(
+    name = "mkfsvfat",
+    mtree = [
+        # needed as dpkg assumes sh is installed in a typical debian installation.
+        "./bin/mkfs.vfat type=link link=/sbin/mkfs.vfat",
+    ],
+)
+
+tar(
+    name = "awk",
+    mtree = [
+        # needed as dpkg assumes sh is installed in a typical debian installation.
+        "./bin/awk type=link link=/usr/bin/gawk",
+    ],
+)
+
+# Creates /var/lib/dpkg/status with installed package information.
+dpkg_status(
+    name = "dpkg_status",
+    controls = [
+        "%s:control" % package
+        for package in PACKAGES
+    ],
+)
+
+passwd(
+    name = "passwd",
+    entries = [
+        dict(
+            gecos = ["root"],
+            gid = 0,
+            home = "/root",
+            shell = "/usr/bin/bash",
+            uid = 0,
+            username = "root",
+        ),
+        # TODO: remove
+        dict(
+            gecos = ["httpbin_user"],
+            gid = 1002,
+            home = "/home/httpbin",
+            shell = "/usr/bin/bash",
+            uid = 1002,
+            username = "httpbin",
+        ),
+    ],
+)
+
+oci_image(
+    name = "ubuntu_test_runtime_image_foo",
+    architecture = "amd64",
+    os = "linux",
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
+    tars = [
+        ":dpkg_status",
+        ":passwd",  # needed because we ssh in
+
+        # symlinks
+        ":awk",
+        ":mkfsvfat",
+        ":sh",
+    ] + PACKAGES,
+)
+
+oci_load(
+    name = "ubuntu_test_runtime_image_image_load",
+    image = ":ubuntu_test_runtime_image_foo",
+    repo_tags = ["bazel/image:image"],
+)
+
+filegroup(
+    name = "ubuntu_test_runtime_image_image.tar",
+    srcs = [":ubuntu_test_runtime_image_image_load"],
+    output_group = "tarball",
+)
+
+copy_file(
+    name = "ubuntu_test_runtime_image_image",
+    src = ":ubuntu_test_runtime_image_image.tar",
+    out = "ubuntu.tar",  # TODO: colocate_test.rs expects this (*sigh*)
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 uvm_config_image(
     name = "colocate_uvm_config_image",
     srcs = [
+        ":ubuntu_test_runtime_image_image",
         "//rs/tests:activate-systest-uvm-config",
-        "@ubuntu_test_runtime//image",
     ],
     remap_paths = {
         "activate-systest-uvm-config": "activate",
@@ -137,9 +253,21 @@ exports_files([
     "src/orchestrator/orchestrator_universal_vm_activation.sh",
 ])
 
+oci_load(
+    name = "static-file-server_image_foo",
+    image = "@static-file-server",
+    repo_tags = ["bazel/image:image"],
+)
+
+filegroup(
+    name = "static-file-server_image_foo.tar",
+    srcs = [":static-file-server_image_foo"],
+    output_group = "tarball",
+)
+
 copy_file(
     name = "static-file-server_image",
-    src = "@static-file-server//image",
+    src = ":static-file-server_image_foo.tar",
     out = "static-file-server.tar",
     target_compatible_with = [
         "@platforms//os:linux",
@@ -154,9 +282,9 @@ exports_files([
 uvm_config_image(
     name = "btc_uvm_config_image",
     srcs = [
+        ":bitcoind_image",
         ":src/btc_integration/bitcoin.conf",
         ":src/btc_integration/btc_activate.sh",
-        "@bitcoind//image",
     ],
     remap_paths = {
         "btc_activate.sh": "activate",
@@ -173,7 +301,7 @@ uvm_config_image(
     srcs = [
         # ":src/btc_integration/bitcoin.conf",
         ":src/jaeger/jaeger_activate.sh",
-        "@jaeger//image",
+        ":jaeger_image",
     ],
     remap_paths = {
         "jaeger_activate.sh": "activate",
@@ -259,36 +387,108 @@ symlink_dirs(
     ],
 )
 
+oci_load(
+    name = "jaeger_image_load",
+    image = "@jaeger",
+    repo_tags = ["jaegertracing/all-in-one:1.58"],  # TODO: fix this
+)
+
+filegroup(
+    name = "jaeger_image.tar",
+    srcs = [":jaeger_image_load"],
+    output_group = "tarball",
+)
+
+copy_file(
+    name = "jaeger_image",
+    src = ":jaeger_image.tar",
+    out = "jaeger.tar",  # TODO: check jaeger_activate changes
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
+)
+
+oci_load(
+    name = "bitcoind_image_load",
+    image = "@bitcoind",
+    repo_tags = ["bazel/image:image"],
+)
+
+filegroup(
+    name = "bitcoind_image.tar",
+    srcs = [":bitcoind_image_load"],
+    output_group = "tarball",
+)
+
+copy_file(
+    name = "bitcoind_image",
+    src = ":bitcoind_image.tar",
+    out = "image.tar",  # TODO: btc activate expects this (*sigh*)
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
+)
+
+oci_load(
+    name = "coredns_image_foo",
+    image = "@coredns",
+    repo_tags = [],
+)
+
+filegroup(
+    name = "coredns_image_foo.tar",
+    srcs = [":coredns_image_foo"],
+    output_group = "tarball",
+)
+
 copy_file(
     name = "coredns_image",
-    src = "@coredns//image",
+    src = ":coredns_image_foo.tar",
     out = "coredns.tar",
     target_compatible_with = [
         "@platforms//os:linux",
     ],
 )
 
+oci_load(
+    name = "pebble_image_foo",
+    image = "@pebble",
+    repo_tags = [],
+)
+
 copy_file(
     name = "pebble_image",
-    src = "@pebble//image",
+    src = ":pebble_image_foo",
     out = "pebble.tar",
     target_compatible_with = [
         "@platforms//os:linux",
     ],
 )
 
+oci_load(
+    name = "python3_image_foo",
+    image = "@python3",
+    repo_tags = [],
+)
+
 copy_file(
     name = "python3_image",
-    src = "@python3//image",
+    src = ":python3_image_foo",
     out = "python3.tar",
     target_compatible_with = [
         "@platforms//os:linux",
     ],
 )
 
+oci_load(
+    name = "openssl_image_foo",
+    image = "@alpine_openssl",
+    repo_tags = [],
+)
+
 copy_file(
     name = "openssl_image",
-    src = "@alpine_openssl//image",
+    src = ":openssl_image_foo",
     out = "openssl.tar",
     target_compatible_with = [
         "@platforms//os:linux",

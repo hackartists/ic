@@ -301,6 +301,8 @@ function build_ic_bootstrap_diskimage() {
     size=$((2 * size + 1048576))
     echo "image size: $size"
     truncate -s $size "${OUT_FILE}"
+    echo "$PATH"
+    mkfs.vfat --help
     mkfs.vfat -n CONFIG "${OUT_FILE}"
     mcopy -i "${OUT_FILE}" -o "${TAR}" ::
 

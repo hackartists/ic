@@ -1,5 +1,7 @@
-load("@io_bazel_rules_docker//container:container.bzl", "container_image")
-load("@io_bazel_rules_docker//contrib:passwd.bzl", "passwd_entry", "passwd_file")
+#load("@io_bazel_rules_docker//container:container.bzl", "container_image", "container_push")
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("@rules_distroless//distroless:defs.bzl", "passwd")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@rules_rust//rust:defs.bzl", "rust_binary")
 
@@ -30,67 +32,101 @@ rust_binary(
     deps = DEPENDENCIES,
 )
 
+pkg_tar(
+    name = "httpbin_image_homedir",
+    srcs = [":httpbin"],
+    package_dir = "/home/httpbin",
+)
+
 ## Create a layer with a httpbin user
 
-passwd_entry(
-    name = "root_user",
-    uid = 0,
-    username = "root",
-)
-
-passwd_entry(
-    name = "httpbin_user",
-    home = "/home/httpbin",
-    info = "httpbin user",
-    uid = 1002,
-    username = "httpbin",
-)
-
-passwd_file(
+passwd(
     name = "passwd",
     entries = [
-        ":httpbin_user",
-        ":root_user",
+        dict(
+            gecos = ["root"],
+            gid = 0,
+            home = "/root",
+            shell = "/usr/bin/bash",
+            uid = 0,
+            username = "root",
+        ),
+        dict(
+            gecos = ["httpbin_user"],
+            gid = 1002,
+            home = "/home/httpbin",
+            shell = "/usr/bin/bash",
+            uid = 1002,
+            username = "httpbin",
+        ),
     ],
-)
-
-pkg_tar(
-    name = "passwd_tar",
-    srcs = [":passwd"],
-    mode = "0644",
-    package_dir = "etc",
 )
 
 ## An intermediate image with the passwd file and empty directories.
 
-container_image(
+oci_image(
     name = "httpbin_image_base",
-    base = "@ubuntu_test_runtime//image",
+    base = "//rs/tests:ubuntu_test_runtime_image_foo",
     tags = ["manual"],
     target_compatible_with = [
         "@platforms//os:linux",
     ],
     tars = [
-        ":passwd_tar",
+        ":passwd",
     ],
 )
 
+# TODO: do we really publish it?
 ## The final image we can publish.
 
-container_image(
-    name = "httpbin_image",
+oci_image(
+    name = "httpbin_image_foo",
     base = ":httpbin_image_base",
-    directory = "/home/httpbin",
-    entrypoint = [
-        "/home/httpbin/httpbin",
-    ],
-    files = [
-        ":httpbin",
-    ],
+    entrypoint = ["/home/httpbin/httpbin"],
     tags = ["manual"],
     target_compatible_with = [
         "@platforms//os:linux",
     ],
+    tars = [":httpbin_image_homedir"],
     user = "httpbin",
     workdir = "/home/httpbin",
 )
+
+oci_load(
+    name = "httpbin_image_load",
+    image = ":httpbin_image_foo",
+    repo_tags = ["bazel/rs/tests/httpbin-rs:httpbin_image"],
+)
+
+filegroup(
+    name = "httpbin_image_.tar",
+    srcs = [":httpbin_image_load"],
+    output_group = "tarball",
+)
+
+copy_file(
+    name = "httpbin_image",
+    src = ":httpbin_image_.tar",
+    out = "httpbin_image.tar",
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
+)
+
+#container_image(
+#    name = "httpbin_image",
+#    base = ":httpbin_image_base",
+#    directory = "/home/httpbin",
+#    entrypoint = [
+#        "/home/httpbin/httpbin",
+#    ],
+#    files = [
+#        ":httpbin",
+#    ],
+#    tags = ["manual"],
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#    user = "httpbin",
+#    workdir = "/home/httpbin",
+#)
