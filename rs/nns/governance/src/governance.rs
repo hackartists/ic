@@ -88,7 +88,10 @@ use ic_nns_constants::{
     LIFELINE_CANISTER_ID, REGISTRY_CANISTER_ID, ROOT_CANISTER_ID, SNS_WASM_CANISTER_ID,
     SUBNET_RENTAL_CANISTER_ID,
 };
-use ic_nns_governance_api::subnet_rental::SubnetRentalRequest;
+use ic_nns_governance_api::{
+    pb::v1::CreateServiceNervousSystem as ApiCreateServiceNervousSystem,
+    subnet_rental::SubnetRentalRequest,
+};
 use ic_protobuf::registry::dc::v1::AddOrRemoveDataCentersProposalPayload;
 use ic_sns_init::pb::v1::SnsInitPayload;
 use ic_sns_swap::pb::v1::{self as sns_swap_pb, Lifecycle, NeuronsFundParticipationConstraints};
@@ -4730,7 +4733,9 @@ impl Governance {
             )
         }?;
 
-        let sns_init_payload = SnsInitPayload::try_from(create_service_nervous_system)?;
+        let sns_init_payload = SnsInitPayload::try_from(ApiCreateServiceNervousSystem::from(
+            create_service_nervous_system,
+        ))?;
 
         Ok(SnsInitPayload {
             neurons_fund_participation_constraints,
@@ -5182,7 +5187,9 @@ impl Governance {
     ) -> Result<(), GovernanceError> {
         // Must be able to convert to a valid SnsInitPayload.
         // TODO this should only be happening here!
-        let conversion_result = SnsInitPayload::try_from(create_service_nervous_system.clone());
+        let conversion_result = SnsInitPayload::try_from(ApiCreateServiceNervousSystem::from(
+            create_service_nervous_system.clone(),
+        ));
         if let Err(err) = conversion_result {
             return Err(GovernanceError::new_with_message(
                 ErrorType::InvalidProposal,

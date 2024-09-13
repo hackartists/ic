@@ -21,6 +21,7 @@ use ic_sns_init::pb::v1::{self as sns_init_pb};
 use lazy_static::lazy_static;
 use maplit::{btreemap, hashmap};
 use std::convert::TryFrom;
+use ic_nns_governance_api::pb::v1::CreateServiceNervousSystem as ApiCreateServiceNervousSystem;
 
 mod neurons_fund;
 mod node_provider_rewards;
@@ -249,7 +250,7 @@ mod convert_from_create_service_nervous_system_to_sns_init_payload_tests {
 
         // Step 2: Call the code under test.
         let converted =
-            SnsInitPayload::try_from(CREATE_SERVICE_NERVOUS_SYSTEM_WITH_MATCHED_FUNDING.clone())
+            SnsInitPayload::try_from(ApiCreateServiceNervousSystem::from(CREATE_SERVICE_NERVOUS_SYSTEM_WITH_MATCHED_FUNDING.clone()))
                 .unwrap();
 
         // Step 3: Inspect the result.
@@ -498,7 +499,7 @@ mod convert_from_create_service_nervous_system_to_sns_init_payload_tests {
             });
 
         // Step 2: Call the code under test.
-        let converted = SnsInitPayload::try_from(original);
+        let converted = SnsInitPayload::try_from(ApiCreateServiceNervousSystem::from((original));
 
         // Step 3: Inspect the result: Err must contain "wait for quiet".
         match converted {
@@ -576,7 +577,7 @@ mod convert_create_service_nervous_system_proposal_to_sns_init_payload_tests_wit
                 .expect("Cannot compute swap_start_timestamp_seconds, swap_due_timestamp_seconds.")
             };
 
-            let sns_init_payload = SnsInitPayload::try_from(create_service_nervous_system).unwrap();
+            let sns_init_payload = SnsInitPayload::try_from(ApiCreateServiceNervousSystem::from(create_service_nervous_system)).unwrap();
 
             SnsInitPayload {
                 neurons_fund_participation_constraints: Some(

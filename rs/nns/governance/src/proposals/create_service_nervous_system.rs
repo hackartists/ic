@@ -1,6 +1,5 @@
-use crate::pb::v1::{create_service_nervous_system, CreateServiceNervousSystem};
+use crate::pb::v1::CreateServiceNervousSystem;
 use ic_nervous_system_proto::pb::v1::{Duration, GlobalTimeOfDay};
-use ic_sns_init::pb::v1::{self as sns_init_pb, sns_init_payload, SnsInitPayload};
 
 impl CreateServiceNervousSystem {
     /// Computes timestamps for when the SNS token swap will start, and will be

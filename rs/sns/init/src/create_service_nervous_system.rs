@@ -1,5 +1,9 @@
-use crate::pb::v1::SnsInitPayload;
-use ic_nns_governance_api::pb::v1::CreateServiceNervousSystem;
+use crate::pb::v1::{
+    sns_init_payload, AirdropDistribution, DappCanisters, DeveloperDistribution,
+    FractionalDeveloperVotingPower, NeuronDistribution, SnsInitPayload, SwapDistribution,
+    TreasuryDistribution,
+};
+use ic_nns_governance_api::pb::v1::{create_service_nervous_system, CreateServiceNervousSystem};
 
 fn divide_perfectly(field_name: &str, dividend: u64, divisor: u64) -> Result<u64, String> {
     match dividend.checked_rem(divisor) {
@@ -152,7 +156,7 @@ impl TryFrom<CreateServiceNervousSystem> for SnsInitPayload {
             .proposal_wait_for_quiet_deadline_increase
             .and_then(|duration| duration.seconds);
 
-        let dapp_canisters = Some(sns_init_pb::DappCanisters {
+        let dapp_canisters = Some(DappCanisters {
             canisters: dapp_canisters,
         });
 
@@ -290,28 +294,8 @@ impl TryFrom<create_service_nervous_system::InitialTokenDistribution>
 
         let mut defects = vec![];
 
-        let developer_distribution = match sns_init_pb::DeveloperDistribution::try_from(
-            developer_distribution.unwrap_or_default(),
-        ) {
-            Ok(ok) => Some(ok),
-            Err(err) => {
-                defects.push(err);
-                None
-            }
-        };
-
-        let treasury_distribution = match sns_init_pb::TreasuryDistribution::try_from(
-            treasury_distribution.unwrap_or_default(),
-        ) {
-            Ok(ok) => Some(ok),
-            Err(err) => {
-                defects.push(err);
-                None
-            }
-        };
-
-        let swap_distribution =
-            match sns_init_pb::SwapDistribution::try_from(swap_distribution.unwrap_or_default()) {
+        let developer_distribution =
+            match DeveloperDistribution::try_from(developer_distribution.unwrap_or_default()) {
                 Ok(ok) => Some(ok),
                 Err(err) => {
                     defects.push(err);
@@ -319,7 +303,25 @@ impl TryFrom<create_service_nervous_system::InitialTokenDistribution>
                 }
             };
 
-        let airdrop_distribution = Some(sns_init_pb::AirdropDistribution::default());
+        let treasury_distribution =
+            match TreasuryDistribution::try_from(treasury_distribution.unwrap_or_default()) {
+                Ok(ok) => Some(ok),
+                Err(err) => {
+                    defects.push(err);
+                    None
+                }
+            };
+
+        let swap_distribution =
+            match SwapDistribution::try_from(swap_distribution.unwrap_or_default()) {
+                Ok(ok) => Some(ok),
+                Err(err) => {
+                    defects.push(err);
+                    None
+                }
+            };
+
+        let airdrop_distribution = Some(AirdropDistribution::default());
 
         if !defects.is_empty() {
             return Err(format!(
@@ -329,7 +331,7 @@ impl TryFrom<create_service_nervous_system::InitialTokenDistribution>
         }
 
         Ok(Self::FractionalDeveloperVotingPower(
-            sns_init_pb::FractionalDeveloperVotingPower {
+            FractionalDeveloperVotingPower {
                 developer_distribution,
                 treasury_distribution,
                 swap_distribution,
@@ -340,7 +342,7 @@ impl TryFrom<create_service_nervous_system::InitialTokenDistribution>
 }
 
 impl TryFrom<create_service_nervous_system::initial_token_distribution::SwapDistribution>
-    for sns_init_pb::SwapDistribution
+    for SwapDistribution
 {
     type Error = String;
 
@@ -361,7 +363,7 @@ impl TryFrom<create_service_nervous_system::initial_token_distribution::SwapDist
 }
 
 impl TryFrom<create_service_nervous_system::initial_token_distribution::TreasuryDistribution>
-    for sns_init_pb::TreasuryDistribution
+    for TreasuryDistribution
 {
     type Error = String;
 
@@ -379,7 +381,7 @@ impl TryFrom<create_service_nervous_system::initial_token_distribution::Treasury
 }
 
 impl TryFrom<create_service_nervous_system::initial_token_distribution::DeveloperDistribution>
-    for sns_init_pb::DeveloperDistribution
+    for DeveloperDistribution
 {
     type Error = String;
 
@@ -392,24 +394,23 @@ impl TryFrom<create_service_nervous_system::initial_token_distribution::Develope
 
         let mut defects = vec![];
 
-        let developer_neurons =
-            developer_neurons
-                .into_iter()
-                .enumerate()
-                .filter_map(|(i, neuron_distribution)| {
-                    match sns_init_pb::NeuronDistribution::try_from(neuron_distribution) {
-                        Ok(ok) => Some(ok),
-                        Err(err) => {
-                            defects.push(format!(
-                                "Failed to convert element at index {} in field \
+        let developer_neurons = developer_neurons
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, neuron_distribution)| {
+                match NeuronDistribution::try_from(neuron_distribution) {
+                    Ok(ok) => Some(ok),
+                    Err(err) => {
+                        defects.push(format!(
+                            "Failed to convert element at index {} in field \
                              `developer_neurons`: {}",
-                                i, err,
-                            ));
-                            None
-                        }
+                            i, err,
+                        ));
+                        None
                     }
-                })
-                .collect();
+                }
+            })
+            .collect();
 
         if !defects.is_empty() {
             return Err(format!(
@@ -423,7 +424,7 @@ impl TryFrom<create_service_nervous_system::initial_token_distribution::Develope
 }
 
 impl TryFrom<create_service_nervous_system::initial_token_distribution::developer_distribution::NeuronDistribution>
-for sns_init_pb::NeuronDistribution
+for NeuronDistribution
 {
     type Error = String;
 
