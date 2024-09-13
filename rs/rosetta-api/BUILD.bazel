@@ -308,10 +308,16 @@ expand_template(
     ],
 )
 
+# Push image with:
+#  $ bazel run //<path>:push_rosetta_image
+#
+# Read more at:
+#   https://github.com/bazel-contrib/rules_oci/blob/main/docs/push.md#usage
+
 oci_push(
     name = "push_rosetta_image",
     image = ":rosetta_image",
     remote_tags = ":stamped",
-    repository = "docker.io/dfinitydev/nmattia-rosetta-api",
+    repository = "docker.io/dfinity/rosetta-api",
     tags = ["manual"],
 )

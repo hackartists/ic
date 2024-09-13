@@ -1,6 +1,7 @@
+load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_distroless//distroless:defs.bzl", "passwd")
-load("@rules_oci//oci:defs.bzl", "oci_image")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_mkdirs")
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
@@ -274,12 +275,23 @@ oci_image(
 ## Run this target with --embed_label flag[1] to specify the image tag.
 ## [1]: https://bazel.build/reference/command-line-reference#flag--embed_label
 
-#container_push(
-#    name = "push_ic_icrc_rosetta_image",
-#    format = "Docker",
-#    image = ":ic_icrc_rosetta_image",
-#    registry = "index.docker.io",
-#    repository = "dfinity/ic-icrc-rosetta-api",
-#    tag = "{BUILD_EMBED_LABEL}",
-#    tags = ["manual"],
-#)
+# Use the value of --embed_label under --stamp, otherwise use a deterministic constant
+# value to ensure cache hits for actions that depend on this.
+expand_template(
+    name = "stamped",
+    out = "_stamped.tags.txt",
+    stamp_substitutions = {"0.0.0": "{{BUILD_EMBED_LABEL}}"},
+    template = [
+        "0.0.0",
+    ],
+)
+
+# https://github.com/bazel-contrib/rules_oci/blob/main/docs/push.md#usage
+
+oci_push(
+    name = "push_ic_icrc_rosetta_image",
+    image = ":ic_icrc_rosetta_image",
+    remote_tags = ":stamped",
+    repository = "docker.io/dfinity/ic-icrc-rosetta-api",
+    tags = ["manual"],
+)
