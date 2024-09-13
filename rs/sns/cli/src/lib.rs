@@ -147,17 +147,15 @@ pub struct AddSnsWasmForTestsArgs {
 pub(crate) fn generate_sns_init_payload(path: &Path) -> Result<SnsInitPayload> {
     let configuration = read_create_service_nervous_system_from_init_yaml(path)?;
 
-    SnsInitPayload::try_from(ic_nns_governance::pb::v1::CreateServiceNervousSystem::from(
-        configuration,
-    ))
-    // This shouldn't be possible -> we could just unwrap here, and there
-    // should be no danger of panic, but we handle Err anyway, because if
-    // err is returned, it still makes sense to just return that.
-    //
-    // The reason Err should be impossible is
-    // try_convert_to_create_service_nervous_system itself call
-    // SnsInitPayload::try_from as part of its validation.
-    .map_err(|err| anyhow!("Invalid configuration in {:?}: {}", path, err))
+    SnsInitPayload::try_from(configuration)
+        // This shouldn't be possible -> we could just unwrap here, and there
+        // should be no danger of panic, but we handle Err anyway, because if
+        // err is returned, it still makes sense to just return that.
+        //
+        // The reason Err should be impossible is
+        // try_convert_to_create_service_nervous_system itself call
+        // SnsInitPayload::try_from as part of its validation.
+        .map_err(|err| anyhow!("Invalid configuration in {:?}: {}", path, err))
 }
 
 fn read_create_service_nervous_system_from_init_yaml(

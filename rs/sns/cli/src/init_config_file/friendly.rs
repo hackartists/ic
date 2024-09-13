@@ -476,9 +476,7 @@ impl SnsConfigurationFile {
                 defects.join("\n  -"),
             ));
         }
-        if let Err(err) = SnsInitPayload::try_from(
-            ic_nns_governance::pb::v1::CreateServiceNervousSystem::from(result.clone()),
-        ) {
+        if let Err(err) = SnsInitPayload::try_from(result.clone()) {
             return Err(anyhow!(
                 "Unable to convert configuration file to proposal: {}",
                 err,
