@@ -62,7 +62,7 @@ use ic_nns_governance_api::{
         NodeProvider, ProposalActionRequest, RewardNodeProviders, StopOrStartCanister,
         UpdateCanisterSettings,
     },
-    proposal_helpers::{
+    proposal_submission_helpers::{
         create_external_update_proposal_candid, create_make_proposal_payload,
         decode_make_proposal_response,
     },
