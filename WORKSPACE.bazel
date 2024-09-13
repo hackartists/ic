@@ -246,7 +246,14 @@ focal_packages()
 
 oci_pull(
     name = "static-file-server",
-    image = "docker.io/halverneus/static-file-server@sha256:c387c31ffb55ac5b6b4654bc9924f73eb8fb5214ebb8552a7eeffc8849f0e7dd",
+    # $ docker pull halverneus/static-file-server
+    # $ docker tag halverneus/static-file-server dfinitydev/halverneus-static-file-server:latest
+    # $ docker push dfinitydev/halverneus-static-file-server:latest
+    #latest: digest: sha256:...
+    image = "docker.io/dfinitydev/halverneus-static-file-server@sha256:80eb204716e0928e27e378ed817056c1167b2b1a878b1ac4ce496964dd9a3ccd",
+    platforms = [
+        "linux/amd64",
+    ],
 )
 
 oci_pull(
@@ -257,8 +264,7 @@ oci_pull(
 # A multi-arch base image
 oci_pull(
     name = "jaeger",
-    digest = "sha256:54c2ea315dab7215c51c1b06b111c666f594e90317584f84eabbc59aa5856b13",
-    image = "docker.io/rancher/jaegertracing-all-in-one",
+    image = "docker.io/dfinitydev/jaegertracing-all-in-one@sha256:b85a6bbb949a62377010b8418d7a860c9d0ea7058d83e7cb5ade4fba046c4a76",
     platforms = [
         "linux/amd64",
     ],
