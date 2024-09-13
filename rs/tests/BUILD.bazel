@@ -5,7 +5,6 @@ load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
 load("@rules_distroless//apt:defs.bzl", "dpkg_status")
 load("@rules_distroless//distroless:defs.bzl", "passwd")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
-
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//bazel:defs.bzl", "symlink_dir", "symlink_dir_test", "symlink_dirs")
 load("//rs/tests:common.bzl", "DEPENDENCIES", "MACRO_DEPENDENCIES")

@@ -1,10 +1,8 @@
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-
 load("@rules_distroless//distroless:defs.bzl", "passwd")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
-
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_mkdirs")
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
