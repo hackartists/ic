@@ -201,10 +201,10 @@ cd /home/admin
 tar -xf /home/admin/{RUNFILES_TAR_ZST} --one-top-level=runfiles
 tar -xf /home/admin/{ENV_TAR_ZST} --one-top-level=root_env
 
-docker load -i /config/ubuntu.tar
+docker load -i /config/ubuntu_test_runtime.tar
 
 cat <<EOF > /home/admin/Dockerfile
-FROM bazel/image:image
+FROM ubuntu_test_runtime:image
 COPY runfiles /home/root/runfiles
 COPY root_env /home/root/root_env
 RUN chmod 700 /home/root/root_env/{SSH_AUTHORIZED_PRIV_KEYS_DIR}

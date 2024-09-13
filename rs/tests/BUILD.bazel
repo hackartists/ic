@@ -1,10 +1,9 @@
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
 load("@rules_distroless//apt:defs.bzl", "dpkg_status")
 load("@rules_distroless//distroless:defs.bzl", "passwd")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("@rules_oci//oci:defs.bzl", "oci_image")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//bazel:defs.bzl", "symlink_dir", "symlink_dir_test", "symlink_dirs")
 load("//rs/tests:common.bzl", "DEPENDENCIES", "MACRO_DEPENDENCIES")
@@ -104,20 +103,11 @@ passwd(
             uid = 0,
             username = "root",
         ),
-        # TODO: remove
-        dict(
-            gecos = ["httpbin_user"],
-            gid = 1002,
-            home = "/home/httpbin",
-            shell = "/usr/bin/bash",
-            uid = 1002,
-            username = "httpbin",
-        ),
     ],
 )
 
 oci_image(
-    name = "ubuntu_test_runtime_image_foo",
+    name = "ubuntu_test_runtime_image_src",
     architecture = "amd64",
     os = "linux",
     target_compatible_with = [
@@ -135,37 +125,16 @@ oci_image(
 )
 
 # TODO: why do we need to load this? can't we use rules_oci to build?
-oci_load(
-    name = "ubuntu_test_runtime_image_image_load",
-    image = ":ubuntu_test_runtime_image_foo",
-    repo_tags = ["bazel/image:image"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
-
-filegroup(
-    name = "ubuntu_test_runtime_image_image.tar",
-    srcs = [":ubuntu_test_runtime_image_image_load"],
-    output_group = "tarball",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
-
-copy_file(
-    name = "ubuntu_test_runtime_image_image",
-    src = ":ubuntu_test_runtime_image_image.tar",
-    out = "ubuntu.tar",  # TODO: colocate_test.rs expects this (*sigh*)
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
+foo(
+    image = ":ubuntu_test_runtime_image_src",
+    repo_tags = ["ubuntu_test_runtime:image"],
+    tarname = "ubuntu_test_runtime.tar",
 )
 
 uvm_config_image(
     name = "colocate_uvm_config_image",
     srcs = [
-        ":ubuntu_test_runtime_image_image",
+        ":ubuntu_test_runtime.tar",
         "//rs/tests:activate-systest-uvm-config",
     ],
     remap_paths = {
@@ -230,33 +199,9 @@ exports_files([
 
 foo(
     image = "@static-file-server",
-    repo_tags = ["bazel/image:image"],  #TODO: change this
+    repo_tags = ["static-file-server:image"],  #TODO: change this
     tarname = "static-file-server.tar",
 )
-
-#oci_load(
-#    name = "static-file-server_image_foo",
-#    image = "@static-file-server",
-#    repo_tags = ["bazel/image:image"],
-#    target_compatible_with = [
-#        "@platforms//os:linux",
-#    ],
-#)
-#
-#filegroup(
-#    name = "static-file-server_image_foo.tar",
-#    srcs = [":static-file-server_image_foo"],
-#    output_group = "tarball",
-#)
-#
-#copy_file(
-#    name = "static-file-server_image",
-#    src = ":static-file-server_image_foo.tar",
-#    out = "static-file-server.tar",
-#    target_compatible_with = [
-#        "@platforms//os:linux",
-#    ],
-#)
 
 exports_files([
     "src/btc_integration/bitcoin.conf",

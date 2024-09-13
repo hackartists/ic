@@ -1,7 +1,5 @@
-load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
-load("@rules_oci//oci:defs.bzl", "oci_load")
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//rs/tests:system_tests.bzl", "uvm_config_image")
+load("//rs/tests:system_tests.bzl", "foo", "uvm_config_image")
 
 package(default_visibility = ["//rs:system-tests-pkg"])
 
@@ -27,10 +25,16 @@ rust_library(
     ],
 )
 
+foo(
+    image = "@minica",
+    repo_tags = ["minica:image"],
+    tarname = "minica.tar",
+)
+
 uvm_config_image(
     name = "http_uvm_config_image",
     srcs = [
-        ":minica_image",
+        ":minica.tar",
         ":universal_vm_activation.sh",
         "//ic-os/components:networking/dev-certs/canister_http_test_ca.cert",
         "//ic-os/components:networking/dev-certs/canister_http_test_ca.key",
@@ -42,31 +46,4 @@ uvm_config_image(
         "canister_http_test_ca.key": "key.pem",
     },
     tags = ["manual"],  # this target will be built if required as a dependency of another target
-)
-
-oci_load(
-    name = "minica_image_load",
-    image = "@minica",
-    repo_tags = ["bazel/image:image"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
-
-filegroup(
-    name = "minica_image.tar",
-    srcs = [":minica_image_load"],
-    output_group = "tarball",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
-
-copy_file(
-    name = "minica_image",
-    src = ":minica_image.tar",
-    out = "minica.tar",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
 )

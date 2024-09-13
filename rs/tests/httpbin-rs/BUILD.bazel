@@ -94,7 +94,7 @@ oci_image(
 oci_load(
     name = "httpbin_image_load",
     image = ":httpbin_image_foo",
-    repo_tags = ["bazel/rs/tests/httpbin-rs:httpbin_image"],
+    repo_tags = ["httpbin:image"],
 )
 
 filegroup(
