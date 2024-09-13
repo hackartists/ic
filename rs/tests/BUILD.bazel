@@ -6,8 +6,6 @@ load("@rules_distroless//apt:defs.bzl", "dpkg_status")
 load("@rules_distroless//distroless:defs.bzl", "passwd")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 
-#load("@io_bazel_rules_docker//docker/package_managers:download_pkgs.bzl", "download_pkgs")
-#load("@io_bazel_rules_docker//docker/package_managers:install_pkgs.bzl", "install_pkgs")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//bazel:defs.bzl", "symlink_dir", "symlink_dir_test", "symlink_dirs")
 load("//rs/tests:common.bzl", "DEPENDENCIES", "MACRO_DEPENDENCIES")
@@ -46,35 +44,6 @@ rust_library(
     target_compatible_with = ["@platforms//os:linux"],  # requires libssh that does not build on Mac OS
     deps = DEPENDENCIES,
 )
-
-#download_pkgs(
-#    name = "ubuntu_test_runtime_pkg",
-#    additional_repos = [
-#        "deb http://security.ubuntu.com/ubuntu focal-security main",
-#    ],
-#    image_tar = "@ubuntu_base//image",
-#    packages = [
-#        "ca-certificates",
-#        "curl",  # TODO: remove since this is for debugging
-#        "dosfstools",
-#        "libssl1.1",  # the test-driver depends on libssl1.1.
-#        "libunwind8",  # idem
-#        "mtools",
-#        "openssh-client",  # for ssh-keygen.
-#        "rsync",  # for //rs/tests/consensus/orchestrator:sr_app_same_nodes_test
-#        "zstd",  # for create-universal-vm-config-image.sh.
-#    ],
-#    tags = ["manual"],
-#)
-#
-#install_pkgs(
-#    name = "ubuntu_test_runtime_image",
-#    image_tar = "@ubuntu_base//:ubuntu_base",
-#    installables_tar = ":ubuntu_test_runtime_pkg.tar",
-#    installation_cleanup_commands = "rm -rf /var/lib/apt/lists/*",
-#    output_image_name = "ubuntu_test_runtime_image",
-#    tags = ["manual"],
-#)
 
 PACKAGES = [
     "@focal//ca-certificates/amd64",

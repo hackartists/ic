@@ -153,6 +153,7 @@ fn setup(env: TestEnv) {
         Path::new("/home/admin").join(ENV_TAR_ZST),
     );
 
+    // TODO: explain
     {
         let tmpdir = tempfile::tempdir().expect("Could not create tempdir");
         let filepath = tmpdir.path().join("env");
@@ -174,15 +175,6 @@ fn setup(env: TestEnv) {
         );
     };
 
-    //let docker_env_vars = {
-    //    let mut env_vars = String::from("");
-    //    for (key, value) in env::vars() {
-    //        env_vars.push_str(format!(r#"--env {key}={value:?} \"#).as_str());
-    //        env_vars.push_str("\n");
-    //    }
-    //    env_vars
-    //};
-
     let required_host_features = {
         if let Some(host_features) = env.read_host_features("colocated") {
             let features = host_features
@@ -195,8 +187,6 @@ fn setup(env: TestEnv) {
             "".to_owned()
         }
     };
-
-    //debug!(log, "Docker env vars: {docker_env_vars}");
 
     info!(log, "Creating final docker image ...");
 
@@ -211,13 +201,8 @@ cd /home/admin
 tar -xf /home/admin/{RUNFILES_TAR_ZST} --one-top-level=runfiles
 tar -xf /home/admin/{ENV_TAR_ZST} --one-top-level=root_env
 
-echo loading docker base image
 docker load -i /config/ubuntu.tar
 
-echo env vars
-cat /home/admin/env_vars
-
-echo creating dockerfile
 cat <<EOF > /home/admin/Dockerfile
 FROM bazel/image:image
 COPY runfiles /home/root/runfiles
@@ -225,11 +210,7 @@ COPY root_env /home/root/root_env
 RUN chmod 700 /home/root/root_env/{SSH_AUTHORIZED_PRIV_KEYS_DIR}
 RUN chmod 600 /home/root/root_env/{SSH_AUTHORIZED_PRIV_KEYS_DIR}/*
 EOF
-
-echo "building docker image"
-docker build --tag final . 2>&1
-
-echo "done building docker image"
+docker build --tag final .
 
 cat <<'EOF' > /home/admin/run
 #!/bin/sh
@@ -241,9 +222,6 @@ if [ "{forward_ssh_agent}" ] && [ -n "${{SSH_AUTH_SOCK:-}}" ] && [ -e "${{SSH_AU
 else
     echo "No ssh-agent to forward."
 fi
-echo "starting container :)"
-echo "env:"
-cat /home/admin/env_vars
 docker run --name {COLOCATE_CONTAINER_NAME} --network host \
   --env-file /home/admin/env_vars --env RUNFILES=/home/root/runfiles \
   "${{DOCKER_RUN_ARGS[@]}}" \
@@ -282,7 +260,7 @@ chmod +x /home/admin/run
 fn start_test(env: TestEnv, uvm: DeployedUniversalVm) {
     let run_test_script = r#"
     set -E
-    nohup sh -c '/home/admin/run; echo $? > test_exit_code' &
+    nohup sh -c '/home/admin/run > /dev/null 2>&1; echo $? > test_exit_code' &
     "#;
 
     let vm = uvm.get_vm().unwrap();
