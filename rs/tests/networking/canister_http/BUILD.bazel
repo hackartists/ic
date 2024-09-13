@@ -48,12 +48,18 @@ oci_load(
     name = "minica_image_load",
     image = "@minica",
     repo_tags = ["bazel/image:image"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 filegroup(
     name = "minica_image.tar",
     srcs = [":minica_image_load"],
     output_group = "tarball",
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 copy_file(

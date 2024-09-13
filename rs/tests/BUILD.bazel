@@ -139,12 +139,18 @@ oci_load(
     name = "ubuntu_test_runtime_image_image_load",
     image = ":ubuntu_test_runtime_image_foo",
     repo_tags = ["bazel/image:image"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 filegroup(
     name = "ubuntu_test_runtime_image_image.tar",
     srcs = [":ubuntu_test_runtime_image_image_load"],
     output_group = "tarball",
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 copy_file(
@@ -226,6 +232,9 @@ oci_load(
     name = "static-file-server_image_foo",
     image = "@static-file-server",
     repo_tags = ["bazel/image:image"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 filegroup(
@@ -360,12 +369,18 @@ oci_load(
     name = "jaeger_image_load",
     image = "@jaeger",
     repo_tags = ["jaegertracing/all-in-one:1.58"],  # TODO: fix this
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 filegroup(
     name = "jaeger_image.tar",
     srcs = [":jaeger_image_load"],
     output_group = "tarball",
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 copy_file(
@@ -381,12 +396,18 @@ oci_load(
     name = "bitcoind_image_load",
     image = "@bitcoind",
     repo_tags = ["bazel/image:image"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 filegroup(
     name = "bitcoind_image.tar",
     srcs = [":bitcoind_image_load"],
     output_group = "tarball",
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 copy_file(
@@ -402,12 +423,18 @@ oci_load(
     name = "coredns_image_foo",
     image = "@coredns",
     repo_tags = [],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 filegroup(
     name = "coredns_image_foo.tar",
     srcs = [":coredns_image_foo"],
     output_group = "tarball",
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 copy_file(
@@ -423,6 +450,9 @@ oci_load(
     name = "pebble_image_foo",
     image = "@pebble",
     repo_tags = [],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 copy_file(
@@ -438,6 +468,9 @@ oci_load(
     name = "python3_image_foo",
     image = "@python3",
     repo_tags = [],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 copy_file(
@@ -453,6 +486,9 @@ oci_load(
     name = "openssl_image_foo",
     image = "@alpine_openssl",
     repo_tags = [],
+    target_compatible_with = [
+        "@platforms//os:linux",
+    ],
 )
 
 copy_file(
