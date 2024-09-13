@@ -3071,8 +3071,6 @@ impl TryFrom<ProposeToCreateServiceNervousSystemCmd> for CreateServiceNervousSys
             governance_parameters,
         };
 
-        let result = ic_nns_governance::pb::v1::CreateServiceNervousSystem::from(result);
-
         // TODO migrate validation out of SnsInitPayload so we no longer have to support ic_nns_gov types
         SnsInitPayload::try_from(result.clone())?;
 
