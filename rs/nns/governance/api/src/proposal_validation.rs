@@ -1,4 +1,4 @@
-use ic_nns_governance::pb::v1::Proposal;
+use crate::pb::v1::Proposal;
 
 // The limits on NNS proposal title len (in bytes).
 const PROPOSAL_TITLE_BYTES_MIN: usize = 5;
@@ -67,6 +67,7 @@ pub fn validate_proposal_url(url: &str) -> Result<(), String> {
     // An empty string will fail validation as it is not a valid url,
     // but it's fine for us.
     if !url.is_empty() {
+        // DO NOT MERGE - where should "validate_proposal_url" live?
         ic_nervous_system_common::validate_proposal_url(
             url,
             PROPOSAL_URL_CHAR_MIN,
