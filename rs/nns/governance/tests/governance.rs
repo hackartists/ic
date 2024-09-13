@@ -18,9 +18,8 @@ use fixtures::{
     NNSStateChange, NeuronBuilder, ProposalNeuronBehavior, NNS,
 };
 use futures::future::FutureExt;
-use ic_base_types::{CanisterId, NumBytes, PrincipalId};
+use ic_base_types::{CanisterId, PrincipalId};
 use ic_crypto_sha2::Sha256;
-use ic_nervous_system_clients::canister_status::{CanisterStatusResultV2, CanisterStatusType};
 use ic_nervous_system_common::{
     cmc::CMC,
     ledger::{compute_neuron_staking_subaccount_bytes, IcpLedger},
@@ -39,8 +38,7 @@ use ic_nns_common::{
     types::UpdateIcpXdrConversionRatePayload,
 };
 use ic_nns_constants::{
-    DEFAULT_SNS_FRAMEWORK_CANISTER_WASM_MEMORY_LIMIT, GOVERNANCE_CANISTER_ID,
-    LEDGER_CANISTER_ID as ICP_LEDGER_CANISTER_ID, SNS_WASM_CANISTER_ID,
+    GOVERNANCE_CANISTER_ID, LEDGER_CANISTER_ID as ICP_LEDGER_CANISTER_ID, SNS_WASM_CANISTER_ID,
 };
 use ic_nns_governance::{
     governance::{
@@ -48,7 +46,7 @@ use ic_nns_governance::{
         test_data::{
             CREATE_SERVICE_NERVOUS_SYSTEM, CREATE_SERVICE_NERVOUS_SYSTEM_WITH_MATCHED_FUNDING,
         },
-        validate_proposal_title, Environment, Governance, HeapGrowthPotential,
+        Environment, Governance, HeapGrowthPotential,
         EXECUTE_NNS_FUNCTION_PAYLOAD_LISTING_BYTES_MAX, MAX_DISSOLVE_DELAY_SECONDS,
         MAX_NEURON_AGE_FOR_AGE_BONUS, MAX_NUMBER_OF_PROPOSALS_WITH_BALLOTS,
         MIN_DISSOLVE_DELAY_FOR_VOTE_ELIGIBILITY_SECONDS, PROPOSAL_MOTION_TEXT_BYTES_MAX,
@@ -95,18 +93,15 @@ use ic_nns_governance::{
     temporarily_disable_private_neuron_enforcement, temporarily_disable_set_visibility_proposals,
     temporarily_enable_private_neuron_enforcement, temporarily_enable_set_visibility_proposals,
 };
+use ic_nns_governance_api::proposal_validation::validate_proposal_title;
 use ic_nns_governance_init::GovernanceCanisterInitPayloadBuilder;
 use ic_sns_init::pb::v1::SnsInitPayload;
-use ic_sns_root::{GetSnsCanistersSummaryRequest, GetSnsCanistersSummaryResponse};
 use ic_sns_swap::pb::v1::{
     self as sns_swap_pb,
     IdealMatchedParticipationFunction as IdealMatchedParticipationFunctionSwapPb, Lifecycle,
     LinearScalingCoefficient, NeuronsFundParticipationConstraints,
 };
-use ic_sns_wasm::pb::v1::{
-    DeployNewSnsRequest, DeployNewSnsResponse, DeployedSns, ListDeployedSnsesRequest,
-    ListDeployedSnsesResponse, SnsWasmError,
-};
+use ic_sns_wasm::pb::v1::{DeployNewSnsRequest, DeployNewSnsResponse, SnsWasmError};
 use icp_ledger::{AccountIdentifier, Memo, Subaccount, Tokens};
 use lazy_static::lazy_static;
 use maplit::{btreemap, hashmap};
