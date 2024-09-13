@@ -1,8 +1,8 @@
-load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@rules_distroless//distroless:defs.bzl", "passwd")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("@rules_oci//oci:defs.bzl", "oci_image")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@rules_rust//rust:defs.bzl", "rust_binary")
+load("//rs/tests:system_tests.bzl", "foo")
 
 package(default_visibility = ["//rs:system-tests-pkg"])
 
@@ -65,7 +65,7 @@ passwd(
 
 oci_image(
     name = "httpbin_image_base",
-    base = "//rs/tests:ubuntu_test_runtime_image_foo",
+    base = "//rs/tests:ubuntu_test_runtime_image_src",
     tags = ["manual"],
     target_compatible_with = [
         "@platforms//os:linux",
@@ -91,41 +91,8 @@ oci_image(
     workdir = "/home/httpbin",
 )
 
-oci_load(
-    name = "httpbin_image_load",
+foo(
     image = ":httpbin_image_foo",
     repo_tags = ["httpbin:image"],
+    tarname = "httpbin.tar",
 )
-
-filegroup(
-    name = "httpbin_image_.tar",
-    srcs = [":httpbin_image_load"],
-    output_group = "tarball",
-)
-
-copy_file(
-    name = "httpbin_image",
-    src = ":httpbin_image_.tar",
-    out = "httpbin_image.tar",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
-
-#container_image(
-#    name = "httpbin_image",
-#    base = ":httpbin_image_base",
-#    directory = "/home/httpbin",
-#    entrypoint = [
-#        "/home/httpbin/httpbin",
-#    ],
-#    files = [
-#        ":httpbin",
-#    ],
-#    tags = ["manual"],
-#    target_compatible_with = [
-#        "@platforms//os:linux",
-#    ],
-#    user = "httpbin",
-#    workdir = "/home/httpbin",
-#)

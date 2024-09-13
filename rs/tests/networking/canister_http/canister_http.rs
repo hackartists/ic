@@ -146,7 +146,7 @@ pub fn start_httpbin_on_uvm(env: &TestEnv) {
         sudo chmod -R 755 ipv6
 
         echo "Setting up httpbin on port 20443 ..."
-        docker load -i /config/httpbin_image.tar
+        docker load -i /config/httpbin.tar
         sudo docker run \
             --rm \
             -d \
