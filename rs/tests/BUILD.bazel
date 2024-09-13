@@ -8,7 +8,7 @@ load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//bazel:defs.bzl", "symlink_dir", "symlink_dir_test", "symlink_dirs")
 load("//rs/tests:common.bzl", "DEPENDENCIES", "MACRO_DEPENDENCIES")
-load(":system_tests.bzl", "uvm_config_image")
+load(":system_tests.bzl", "foo", "uvm_config_image")
 
 package(default_visibility = ["//rs:system-tests-pkg"])
 
@@ -134,6 +134,7 @@ oci_image(
     ] + PACKAGES,
 )
 
+# TODO: why do we need to load this? can't we use rules_oci to build?
 oci_load(
     name = "ubuntu_test_runtime_image_image_load",
     image = ":ubuntu_test_runtime_image_foo",
@@ -227,29 +228,35 @@ exports_files([
     "src/orchestrator/orchestrator_universal_vm_activation.sh",
 ])
 
-oci_load(
-    name = "static-file-server_image_foo",
+foo(
     image = "@static-file-server",
-    repo_tags = ["bazel/image:image"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
+    repo_tags = ["bazel/image:image"],  #TODO: change this
+    tarname = "static-file-server.tar",
 )
 
-filegroup(
-    name = "static-file-server_image_foo.tar",
-    srcs = [":static-file-server_image_foo"],
-    output_group = "tarball",
-)
-
-copy_file(
-    name = "static-file-server_image",
-    src = ":static-file-server_image_foo.tar",
-    out = "static-file-server.tar",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
+#oci_load(
+#    name = "static-file-server_image_foo",
+#    image = "@static-file-server",
+#    repo_tags = ["bazel/image:image"],
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
+#
+#filegroup(
+#    name = "static-file-server_image_foo.tar",
+#    srcs = [":static-file-server_image_foo"],
+#    output_group = "tarball",
+#)
+#
+#copy_file(
+#    name = "static-file-server_image",
+#    src = ":static-file-server_image_foo.tar",
+#    out = "static-file-server.tar",
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
 
 exports_files([
     "src/btc_integration/bitcoin.conf",
@@ -259,7 +266,7 @@ exports_files([
 uvm_config_image(
     name = "btc_uvm_config_image",
     srcs = [
-        ":bitcoind_image",
+        ":bitcoind.tar",
         ":src/btc_integration/bitcoin.conf",
         ":src/btc_integration/btc_activate.sh",
     ],
@@ -364,149 +371,184 @@ symlink_dirs(
     ],
 )
 
-oci_load(
-    name = "jaeger_image_load",
+foo(
     image = "@jaeger",
     repo_tags = ["jaegertracing/all-in-one:1.58"],  # TODO: fix this
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
+    tarname = "jaeger.tar",
 )
 
-filegroup(
-    name = "jaeger_image.tar",
-    srcs = [":jaeger_image_load"],
-    output_group = "tarball",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
+#oci_load(
+#    name = "jaeger_image_load",
+#    image = "@jaeger",
+#    repo_tags = ["jaegertracing/all-in-one:1.58"],  # TODO: fix this
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
+#
+#filegroup(
+#    name = "jaeger_image.tar",
+#    srcs = [":jaeger_image_load"],
+#    output_group = "tarball",
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
+#
+#copy_file(
+#    name = "jaeger_image",
+#    src = ":jaeger_image.tar",
+#    out = "jaeger.tar",  # TODO: check jaeger_activate changes
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
 
-copy_file(
-    name = "jaeger_image",
-    src = ":jaeger_image.tar",
-    out = "jaeger.tar",  # TODO: check jaeger_activate changes
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
+#oci_load(
+#    name = "bitcoind_image",
+#    image = "@bitcoind",
+#    repo_tags = ["bitcoind:pinned"],
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
+#
+#filegroup(
+#    name = "bitcoind_tarballdir",
+#    srcs = [":bitcoind_image"],
+#    output_group = "tarball",
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
+#
+#copy_file(
+#    name = "bitcoind_tar",
+#    src = ":bitcoind_tarballdir",
+#    out = "bitcoind.tar",  # TODO: btc activate expects this (*sigh*)
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
 
-oci_load(
-    name = "bitcoind_image_load",
+# TODO: btc activate expects this (*sigh*)
+foo(
     image = "@bitcoind",
-    repo_tags = ["bazel/image:image"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
+    repo_tags = ["bitcoind:pinned"],
+    tarname = "bitcoind.tar",
 )
 
-filegroup(
-    name = "bitcoind_image.tar",
-    srcs = [":bitcoind_image_load"],
-    output_group = "tarball",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
-
-copy_file(
-    name = "bitcoind_image",
-    src = ":bitcoind_image.tar",
-    out = "image.tar",  # TODO: btc activate expects this (*sigh*)
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
-
-oci_load(
-    name = "coredns_image_foo",
+foo(
     image = "@coredns",
-    repo_tags = [],
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
+    repo_tags = ["coredns:latest"],
+    tarname = "coredns.tar",
 )
 
-filegroup(
-    name = "coredns_image_foo.tar",
-    srcs = [":coredns_image_foo"],
-    output_group = "tarball",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
-
-copy_file(
-    name = "coredns_image",
-    src = ":coredns_image_foo.tar",
-    out = "coredns.tar",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
-
-oci_load(
-    name = "pebble_image_foo",
+foo(
     image = "@pebble",
-    repo_tags = [],
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
+    repo_tags = ["pebble:latest"],
+    tarname = "pebble.tar",
 )
 
-copy_file(
-    name = "pebble_image",
-    src = ":pebble_image_foo",
-    out = "pebble.tar",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
+#oci_load(
+#    name = "pebble_image",
+#    image = "@pebble",
+#    repo_tags = [ "pebble:latest" ],
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
+#
+#filegroup(
+#    name = "pebble_tarballdir",
+#    srcs = [":pebble_image"],
+#    output_group = "tarball",
+#
+#)
+#
+#copy_file(
+#    name = "pebble_tar",
+#    src = ":pebble_tarballdir",
+#    out = "pebble.tar",
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
 
-oci_load(
-    name = "python3_image_foo",
+foo(
     image = "@python3",
-    repo_tags = [],
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
+    repo_tags = ["python3:latest"],
+    tarname = "python3.tar",
 )
 
-copy_file(
-    name = "python3_image",
-    src = ":python3_image_foo",
-    out = "python3.tar",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
+#oci_load(
+#    name = "python3_image",
+#    image = "@python3",
+#    repo_tags = [ "python3:latest" ], # TODO: must have tag
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
+#
+#filegroup(
+#    name = "python3_tarballdir",
+#    srcs = [":python3_image"],
+#    output_group = "tarball",
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
+#
+#copy_file(
+#    name = "python3_tar",
+#    src = ":python3_tarballdir",
+#    out = "python3.tar",
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
 
-oci_load(
-    name = "openssl_image_foo",
+foo(
     image = "@alpine_openssl",
-    repo_tags = [],
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
+    repo_tags = ["openssl:latest"],
+    tarname = "openssl.tar",
 )
 
-copy_file(
-    name = "openssl_image",
-    src = ":openssl_image_foo",
-    out = "openssl.tar",
-    target_compatible_with = [
-        "@platforms//os:linux",
-    ],
-)
+#oci_load(
+#    name = "openssl_image",
+#    image = "@alpine_openssl",
+#    repo_tags = [ "openssl:latest" ],
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
+#
+#filegroup(
+#    name = "openssl_tarballdir",
+#    srcs = [":openssl_image"],
+#    output_group = "tarball",
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
+#
+#copy_file(
+#    name = "openssl_tar",
+#    src = ":openssl_tarballdir",
+#    out = "openssl.tar",
+#    target_compatible_with = [
+#        "@platforms//os:linux",
+#    ],
+#)
 
 uvm_config_image(
     name = "custom_domains_uvm_config_image",
     srcs = [
         # Docker images
-        ":coredns_image",
-        ":openssl_image",
-        ":pebble_image",
-        ":python3_image",
+        ":coredns_tar",
+        ":openssl_tar",
+        ":pebble_tar",
+        ":python3_tar",
 
         # Assets
         ":src/custom_domains_integration/activate.sh",

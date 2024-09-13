@@ -3,6 +3,8 @@ Rules for system-tests.
 """
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("@rules_oci//oci:defs.bzl", "oci_load")
 load("@rules_rust//rust:defs.bzl", "rust_binary")
 load("//bazel:defs.bzl", "mcopy", "zstd_compress")
 load("//rs/tests:common.bzl", "GUESTOS_DEV_VERSION", "MAINNET_NNS_CANISTER_ENV", "MAINNET_NNS_CANISTER_RUNTIME_DEPS", "NNS_CANISTER_ENV", "NNS_CANISTER_RUNTIME_DEPS", "UNIVERSAL_VM_RUNTIME_DEPS")
@@ -375,3 +377,45 @@ def uvm_config_image(name, tags = None, visibility = None, srcs = None, remap_pa
         target_compatible_with = ["@platforms//os:linux"],
         visibility = visibility,
     )
+
+def foo(tarname, image, repo_tags = []):
+    # TODO: if doesn't end with tar, error
+
+    basename = tarname.removesuffix(".tar")
+
+    name_image = basename + "_image"
+
+    oci_load(
+        name = name_image,
+        image = image,
+        repo_tags = repo_tags,
+        target_compatible_with = [
+            "@platforms//os:linux",
+        ],
+    )
+
+    name_tarballdir = basename + "_tarballdir"
+
+    native.filegroup(
+        name = name_tarballdir,
+        srcs = [":" + name_image],
+        output_group = "tarball",
+        target_compatible_with = [
+            "@platforms//os:linux",
+        ],
+    )
+
+    copy_file(
+        name = basename + "_tar",
+        src = ":" + name_tarballdir,
+        out = tarname,
+        target_compatible_with = [
+            "@platforms//os:linux",
+        ],
+    )
+
+    #foo = rule(
+    #    implementation = _foo,
+    #    attrs = {
+    #    },
+    #)
