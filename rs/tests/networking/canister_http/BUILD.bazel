@@ -1,5 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//rs/tests:system_tests.bzl", "foo", "uvm_config_image")
+load("//rs/tests:system_tests.bzl", "oci_tar", "uvm_config_image")
 
 package(default_visibility = ["//rs:system-tests-pkg"])
 
@@ -25,10 +25,10 @@ rust_library(
     ],
 )
 
-foo(
+oci_tar(
+    name = "minica.tar",
     image = "@minica",
     repo_tags = ["minica:image"],
-    tarname = "minica.tar",
 )
 
 uvm_config_image(

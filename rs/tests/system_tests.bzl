@@ -378,10 +378,19 @@ def uvm_config_image(name, tags = None, visibility = None, srcs = None, remap_pa
         visibility = visibility,
     )
 
-def foo(tarname, image, repo_tags = []):
-    # TODO: if doesn't end with tar, error
+def oci_tar(name, image, repo_tags = []):
+    """Create a tarball from an OCI image. The target is marked as 'manual'.
 
-    basename = tarname.removesuffix(".tar")
+    Args:
+      name: This name will be used for the tarball (must end with '.tar').
+      repo_tags: OCI tags for oci_load.
+      image: The OCI image to bundle.
+    """
+
+    if not name.endswith(".tar"):
+        fail("Expected tarname to end with '.tar': " + name)
+
+    basename = name.removesuffix(".tar")
 
     name_image = basename + "_image"
 
@@ -403,19 +412,15 @@ def foo(tarname, image, repo_tags = []):
         target_compatible_with = [
             "@platforms//os:linux",
         ],
+        tags = ["manual"],
     )
 
     copy_file(
         name = basename + "_tar",
         src = ":" + name_tarballdir,
-        out = tarname,
+        out = name,
         target_compatible_with = [
             "@platforms//os:linux",
         ],
+        tags = ["manual"],
     )
-
-    #foo = rule(
-    #    implementation = _foo,
-    #    attrs = {
-    #    },
-    #)
