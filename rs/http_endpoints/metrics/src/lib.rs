@@ -113,34 +113,34 @@ impl MetricsHttpEndpoint {
     /// does not terminate and if/when we support clean shutdown this task will
     /// need to be joined.
     fn start_log(&self) {
-        let log = self.log.clone();
-        let metrics_registry = self.metrics_registry.clone();
-        self.rt_handle.spawn(async move {
-            let encoder = TextEncoder::new();
-            let mut interval = tokio::time::interval(Duration::from_secs(LOG_INTERVAL_SECS));
-            loop {
-                interval.tick().await;
+        // let log = self.log.clone();
+        // let metrics_registry = self.metrics_registry.clone();
+        // self.rt_handle.spawn(async move {
+        //     let encoder = TextEncoder::new();
+        //     let mut interval = tokio::time::interval(Duration::from_secs(LOG_INTERVAL_SECS));
+        //     loop {
+        //         interval.tick().await;
 
-                // Replica metrics need to be served even if some adapters are unresponsive.
-                // To guarantee this, each adapter enforces either the default timeout (1s)
-                let metrics_registry_replica = metrics_registry.clone();
-                let metrics_registry_adapter = metrics_registry.clone();
-                let (mf_replica, mut mf_adapters) = tokio::join!(
-                    tokio::spawn(
-                        async move { metrics_registry_replica.prometheus_registry().gather() }
-                    ),
-                    metrics_registry_adapter
-                        .adapter_registry()
-                        .gather(DEFAULT_ADAPTER_COLLECTION_TIMEOUT)
-                );
-                mf_adapters.append(&mut mf_replica.unwrap_or_default());
+        //         // Replica metrics need to be served even if some adapters are unresponsive.
+        //         // To guarantee this, each adapter enforces either the default timeout (1s)
+        //         let metrics_registry_replica = metrics_registry.clone();
+        //         let metrics_registry_adapter = metrics_registry.clone();
+        //         let (mf_replica, mut mf_adapters) = tokio::join!(
+        //             tokio::spawn(
+        //                 async move { metrics_registry_replica.prometheus_registry().gather() }
+        //             ),
+        //             metrics_registry_adapter
+        //                 .adapter_registry()
+        //                 .gather(DEFAULT_ADAPTER_COLLECTION_TIMEOUT)
+        //         );
+        //         mf_adapters.append(&mut mf_replica.unwrap_or_default());
 
-                let mut buffer = Vec::with_capacity(mf_adapters.len());
-                encoder.encode(&mf_adapters, &mut buffer).unwrap();
-                let metrics = String::from_utf8(buffer).unwrap();
-                trace!(log, "{}", metrics);
-            }
-        });
+        //         let mut buffer = Vec::with_capacity(mf_adapters.len());
+        //         encoder.encode(&mf_adapters, &mut buffer).unwrap();
+        //         let metrics = String::from_utf8(buffer).unwrap();
+        //         trace!(log, "{}", metrics);
+        //     }
+        // });
     }
 
     /// Spawn a background task to accept and handle metrics connections.  This

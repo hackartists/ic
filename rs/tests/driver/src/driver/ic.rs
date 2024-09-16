@@ -40,7 +40,7 @@ pub struct InternetComputer {
     pub node_provider: Option<PrincipalId>,
     pub unassigned_nodes: Vec<Node>,
     pub ssh_readonly_access_to_unassigned_nodes: Vec<String>,
-    name: String,
+    pub name: String,
     pub bitcoind_addr: Option<SocketAddr>,
     pub jaeger_addr: Option<SocketAddr>,
     pub socks_proxy: Option<String>,
@@ -267,7 +267,7 @@ impl InternetComputer {
         Ok(())
     }
 
-    fn create_secret_key_stores(&mut self, tempdir: &Path) -> Result<()> {
+    pub fn create_secret_key_stores(&mut self, tempdir: &Path) -> Result<()> {
         for n in self.unassigned_nodes.iter_mut() {
             let sks = NodeSecretKeyStore::new(tempdir.join(format!("node-{:p}", n)))?;
             n.secret_key_store = Some(sks);
@@ -281,7 +281,7 @@ impl InternetComputer {
         Ok(())
     }
 
-    fn propagate_ip_addrs(&mut self, res_group: &ResourceGroup) {
+    pub fn propagate_ip_addrs(&mut self, res_group: &ResourceGroup) {
         for n in self.unassigned_nodes.iter_mut() {
             n.ipv6 = Some(
                 res_group

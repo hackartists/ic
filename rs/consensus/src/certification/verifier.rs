@@ -3,6 +3,7 @@ use ic_interfaces::{
     certification::{Verifier, VerifierError},
     validation::ValidationResult,
 };
+use ic_logger::info;
 use ic_types::{consensus::certification::Certification, RegistryVersion, SubnetId};
 use std::sync::Arc;
 
@@ -26,14 +27,24 @@ impl Verifier for VerifierImpl {
         registry_version: RegistryVersion,
     ) -> ValidationResult<VerifierError> {
         // Check whether certification is cryptographically verifiable using the
-        self.crypto
+        let ret = self
+            .crypto
             .verify_combined_threshold_sig_by_public_key(
                 &certification.signed.signature.signature,
                 &certification.signed.content,
                 subnet_id,
                 registry_version,
             )
-            .map_err(VerifierError::from)
+            .map_err(VerifierError::from);
+
+        println!(
+            "verifier validate: subnet: {}, result: {:?}, signer: {:?} sig: {:?}",
+            subnet_id,
+            ret,
+            certification.signed.signature.signer,
+            certification.signed.signature.signature
+        );
+        ret
     }
 }
 

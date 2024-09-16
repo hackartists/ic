@@ -368,6 +368,8 @@ impl SubnetConfig {
                 })
                 .collect();
 
+            println!("state_hashes: {:?}", state_hashes);
+
             // Make sure that all states have the same state shash
             assert_eq!(
                 state_hashes,
@@ -378,6 +380,7 @@ impl SubnetConfig {
         } else {
             vec![]
         };
+        println!("state_hash[0]: {:?}", state_hash);
 
         let subnet_dkg = CatchUpPackageContents {
             initial_ni_dkg_transcript_low_threshold: Some(InitialNiDkgTranscriptRecord::from(

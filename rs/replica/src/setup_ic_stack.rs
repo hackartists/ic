@@ -181,6 +181,27 @@ pub fn construct_ic_stack(
 
     // ---------- REPLICATED STATE DEPS FOLLOW ----------
     let consensus_pool_cache = consensus_pool.read().unwrap().get_cache();
+    info!(
+        log,
+        "Starting the IC stack with the last certified height {} with state root {:?}",
+        consensus_pool_cache.starting_height(),
+        &config.state_manager.state_root.to_str(),
+    );
+    // FIXME: fake verifier
+    // struct FakeVerifier;
+    // impl ic_interfaces::certification::Verifier for FakeVerifier {
+    //     fn validate(
+    //         &self,
+    //         _: SubnetId,
+    //         _: &ic_types::consensus::certification::Certification,
+    //         _: ic_types::RegistryVersion,
+    //     ) -> ic_interfaces::validation::ValidationResult<ic_interfaces::certification::VerifierError>
+    //     {
+    //         Ok(())
+    //     }
+    // }
+
+    // let verifier = Arc::new(FakeVerifier);
     let verifier = Arc::new(VerifierImpl::new(crypto.clone()));
     let state_manager = Arc::new(StateManagerImpl::new(
         verifier,

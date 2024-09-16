@@ -1316,6 +1316,9 @@ impl MessageRoutingImpl {
             std::thread::Builder::new()
                 .name("MR Batch Processor".to_string())
                 .spawn(move || {
+                    println!(
+                        "MessageRoutingImpl::from_batch_processor Batch processor thread started"
+                    );
                     while let Ok(batch) = batch_receiver.recv() {
                         batch_processor.process_batch(batch);
                     }

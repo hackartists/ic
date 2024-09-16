@@ -20,6 +20,7 @@ pub(crate) async fn state_sync_advert_handler(
     Extension(peer): Extension<NodeId>,
     payload: Bytes,
 ) -> Result<(), StatusCode> {
+    println!("state_sync_advert_handler : {:?}", peer);
     let id: StateSyncArtifactId = pb::StateSyncId::decode(payload)
         .map_err(|_| StatusCode::BAD_REQUEST)?
         .into();

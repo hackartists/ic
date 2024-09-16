@@ -42,6 +42,7 @@ pub(crate) async fn state_sync_chunk_handler<T: 'static>(
     State(state): State<Arc<StateSyncChunkHandler<T>>>,
     payload: Bytes,
 ) -> Result<Bytes, StatusCode> {
+    println!("state_sync_chunk_handler");
     // Parse payload
     let pb::StateSyncChunkRequest { id, chunk_id } =
         pb::StateSyncChunkRequest::decode(payload).map_err(|_| StatusCode::BAD_REQUEST)?;

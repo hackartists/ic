@@ -283,6 +283,7 @@ pub(crate) async fn get_latest_certified_state(
             // path is valid and required to start the HTTP endpoint.
             Err(TooLongPathError {}) => panic!("bug: failed to convert path to LabeledTree"),
         };
+        println!("label tree: {:?}", labeled_tree);
         let state = state_reader.read_certified_state(&labeled_tree);
         state.map(|r| r.0)
     })

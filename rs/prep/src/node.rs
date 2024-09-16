@@ -230,6 +230,10 @@ impl InitializedNode {
 
         let (_height, state) = state_manager.take_tip();
         state_manager.commit_and_certify(state, Height::new(1), CertificationScope::Full, None);
+        println!(
+            "State hash at height 1: {:?}",
+            state_manager.get_state_hash_at(Height::new(1))
+        );
 
         loop {
             match state_manager.get_state_hash_at(Height::new(1)) {

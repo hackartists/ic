@@ -298,7 +298,10 @@ impl ConnectionManager {
                 },
                 Some(conn_res) = self.outbound_connecting.join_next() => {
                     match conn_res {
-                        Ok((conn_out, peer_id)) => self.handle_connecting_result(conn_out, Some(peer_id)),
+                        Ok((conn_out, peer_id)) => {
+                            info!(self.log, "Outbound Connection established to {}", peer_id);
+                            self.handle_connecting_result(conn_out, Some(peer_id))
+                        },
                         Err(err) => {
                             // Cancelling tasks is ok. Panicking tasks are not.
                             if err.is_panic() {
@@ -309,7 +312,10 @@ impl ConnectionManager {
                 },
                 Some(conn_res) = self.inbound_connecting.join_next() => {
                     match conn_res {
-                        Ok(conn_out) => self.handle_connecting_result(conn_out, None),
+                        Ok(conn_out) => {
+                            info!(self.log, "Inbound Connection established to");
+                            self.handle_connecting_result(conn_out, None)
+                        },
                         Err(err) => {
                             // Cancelling tasks is ok. Panicking tasks are not.
                             if err.is_panic() {
@@ -365,6 +371,7 @@ impl ConnectionManager {
     }
 
     fn handle_topology_change(&mut self) {
+        println!("handle_topology_change");
         self.metrics.topology_changes_total.inc();
         self.topology = self.watcher.borrow_and_update().clone();
 
@@ -378,6 +385,7 @@ impl ConnectionManager {
             .server_config(subnet_nodes, self.topology.latest_registry_version())
         {
             Ok(rustls_server_config) => {
+                println!("rustls_server_config: {:?}", rustls_server_config);
                 let quic_server_config = QuicServerConfig::try_from(rustls_server_config).unwrap();
                 let mut server_config =
                     quinn::ServerConfig::with_crypto(Arc::new(quic_server_config));
@@ -428,6 +436,7 @@ impl ConnectionManager {
     }
 
     fn handle_dial(&mut self, peer_id: NodeId) {
+        println!("handle_dial for subnet topology changed for node {peer_id}");
         let not_dialer = !self.am_i_dialer(&peer_id);
         let peer_not_in_subnet = self.topology.get_addr(&peer_id).is_none();
         let active_connection_attempt = self.outbound_connecting.contains(&peer_id);
@@ -455,6 +464,7 @@ impl ConnectionManager {
             .topology
             .get_addr(&peer_id)
             .expect("Just checked this conditions");
+        info!(self.log, "Connecting to address {addr}");
         let endpoint = self.endpoint.clone();
         let rustls_client_config = self
             .tls_config
