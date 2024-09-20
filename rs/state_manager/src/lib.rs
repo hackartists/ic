@@ -1846,17 +1846,12 @@ impl StateManagerImpl {
         &self,
     ) -> Option<(Arc<ReplicatedState>, Certification, Arc<HashTree>)> {
         let states = self.states.read();
-        println!("latest_certified_state: states: {:?}", states.fetch_state);
 
         let (height, certification, hash_tree) = states
             .certifications_metadata
             .iter()
             .rev()
             .find_map(|(height, metadata)| {
-                println!(
-                    "latest_certified_state: height: {:?}  metadata: {:?}",
-                    height, metadata,
-                );
                 let hash_tree = metadata.hash_tree.as_ref()?;
                 metadata
                     .certification
@@ -2649,7 +2644,6 @@ impl StateManagerImpl {
     }
 
     fn certified_state_reader(&self) -> Option<CertifiedStateSnapshotImpl> {
-        println!("certified_state_reader");
         let read_certified_state_duration_histogram = self
             .metrics
             .api_call_duration
@@ -3630,7 +3624,6 @@ impl StateReader for StateManagerImpl {
         &self,
         paths: &LabeledTree<()>,
     ) -> Option<(Arc<Self::State>, MixedHashTree, Certification)> {
-        println!("read_certified_state");
         let reader = self.certified_state_reader()?;
         let (mixed_hash_tree, certification) = reader.read_certified_state(paths)?;
 

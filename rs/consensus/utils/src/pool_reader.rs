@@ -450,18 +450,9 @@ impl<'a> PoolReader<'a> {
         h: Height,
     ) -> Box<dyn Iterator<Item = NotarizationShare>> {
         let ns = self.pool.validated().notarization_share();
-        println!("Get notarization shares size {}", ns.size());
         let all = ns.get_all();
-        println!(
-            "Get all notarization shares  {:?}",
-            all.into_iter().collect::<Vec<_>>(),
-        );
 
         let ret = self.pool.validated().notarization_share().get_by_height(h);
-        println!(
-            "Get notarization shares by height {:?}",
-            ret.into_iter().collect::<Vec<_>>()
-        );
         self.pool.validated().notarization_share().get_by_height(h)
     }
 

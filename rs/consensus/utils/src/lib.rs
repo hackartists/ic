@@ -68,12 +68,6 @@ impl RoundRobin {
             result = calls[next]();
             next = (next + 1) % calls.len();
             if !result.is_empty() || *index == next {
-                println!(
-                    "RoundRobin: call_next: index={:?}, next={}, result.len()={}",
-                    *index,
-                    next,
-                    result.len()
-                );
                 break;
             };
         }

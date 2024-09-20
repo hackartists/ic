@@ -180,6 +180,8 @@ pub fn setup_consensus_and_p2p(
     )
         .into();
 
+    info!(log, "Starting QuicTransport on {:?}", transport_addr);
+
     let quic_transport = Arc::new(ic_quic_transport::QuicTransport::start(
         log,
         metrics_registry,

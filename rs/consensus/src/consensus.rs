@@ -393,8 +393,7 @@ impl<T: ConsensusPool> ChangeSetProducer<T> for ConsensusImpl {
     ///    a priority, but it should not affect liveness or correctness.
     fn on_state_change(&self, pool: &T) -> ChangeSet {
         let request_id: u64 = rand::random();
-        println!("\n\n\n\n");
-        trace!(self.log, "{request_id} on_state_change");
+        trace!(self.log, "\n\n\n\n{request_id} on_state_change");
         let pool_reader = PoolReader::new(pool);
 
         // Load new transcripts, remove outdated keys.

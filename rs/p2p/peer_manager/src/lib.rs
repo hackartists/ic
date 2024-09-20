@@ -83,13 +83,10 @@ impl PeerManager {
             self.metrics.topology_updates.inc();
 
             let mut topology = self.get_latest_subnet_topology();
-            println!("peer manager topology: {:?}", topology);
             let _timer = self.metrics.topology_watcher_update_duration.start_timer();
             // Notify watchers of latest shared state iff the latest topology is different to the old one.
             self.topology_sender
                 .send_if_modified(move |old_topology: &mut SubnetTopology| {
-                    println!("peer manager old topology: {:?}", old_topology);
-
                     if old_topology == &topology {
                         false
                     } else {
@@ -140,8 +137,6 @@ impl PeerManager {
                     Vec::new()
                 }
             };
-
-            println!("transport_info: {:?}", transport_info);
 
             for (peer_id, info) in transport_info {
                 match info.http {

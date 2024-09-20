@@ -113,13 +113,6 @@ impl Membership {
 
         // We only elect f+1 nodes as block makers, which is the minimum amount that
         // still guarantees at least one honest block maker is elected.
-        println!(
-            "Block maker rank for node {:?} is {:?} of {}, shuffled_nodes {:?} ",
-            node_id,
-            index,
-            get_faults_tolerated(shuffled_nodes.len()),
-            shuffled_nodes,
-        );
         if index <= get_faults_tolerated(shuffled_nodes.len()) {
             Ok(Some(Rank(index as u64)))
         } else {

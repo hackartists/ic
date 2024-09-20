@@ -40,7 +40,7 @@ use ic_base_types::NodeId;
 use ic_crypto_tls_interfaces::{SomeOrAllNodes, TlsConfig, TlsConfigError};
 use ic_crypto_utils_tls::node_id_from_certificate_der;
 use ic_interfaces_registry::RegistryClient;
-use ic_logger::{error, info, ReplicaLogger};
+use ic_logger::{error, info, new_logger, ReplicaLogger};
 use ic_metrics::MetricsRegistry;
 use quinn::{
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
@@ -211,11 +211,9 @@ pub(crate) fn start_connection_manager(
     // Maybe in the future we could derive a key from our tls key.
     let endpoint_config = EndpointConfig::default();
     let rustls_server_config = tls_config
-        .server_config(
-            SomeOrAllNodes::Some(BTreeSet::new()),
-            registry_client.get_latest_version(),
-        )
+        .server_config(SomeOrAllNodes::All, registry_client.get_latest_version())
         .expect("Failed to get rustls server config, so transport can't start.");
+    info!(log, "tls server config {:?}", rustls_server_config);
 
     let mut transport_config = quinn::TransportConfig::default();
 
@@ -244,6 +242,7 @@ pub(crate) fn start_connection_manager(
         )
         .expect("Failed to create endpoint")
     };
+    info!(log, "endpoint {:?}", endpoint);
     let manager = ConnectionManager {
         log: log.clone(),
         rt: rt.clone(),
@@ -274,9 +273,11 @@ impl ConnectionManager {
     }
 
     pub async fn run(mut self, cancellation: CancellationToken) {
+        info!(self.log, "Starting connection manager");
         loop {
             select! {
                 () = cancellation.cancelled() => {
+                    info!(self.log, "cacelled connection manager. Stopping transport.");
                     break;
                 },
                 Some(reconnect) = self.connect_queue.next() => {
@@ -288,6 +289,7 @@ impl ConnectionManager {
                     self.handle_topology_change();
                 },
                 incoming = self.endpoint.accept() => {
+                    info!(self.log, "Incoming connection");
                     if let Some(incoming) = incoming {
                         self.handle_inbound(incoming);
                     } else {
@@ -371,7 +373,6 @@ impl ConnectionManager {
     }
 
     fn handle_topology_change(&mut self) {
-        println!("handle_topology_change");
         self.metrics.topology_changes_total.inc();
         self.topology = self.watcher.borrow_and_update().clone();
 
@@ -385,7 +386,6 @@ impl ConnectionManager {
             .server_config(subnet_nodes, self.topology.latest_registry_version())
         {
             Ok(rustls_server_config) => {
-                println!("rustls_server_config: {:?}", rustls_server_config);
                 let quic_server_config = QuicServerConfig::try_from(rustls_server_config).unwrap();
                 let mut server_config =
                     quinn::ServerConfig::with_crypto(Arc::new(quic_server_config));
@@ -436,7 +436,6 @@ impl ConnectionManager {
     }
 
     fn handle_dial(&mut self, peer_id: NodeId) {
-        println!("handle_dial for subnet topology changed for node {peer_id}");
         let not_dialer = !self.am_i_dialer(&peer_id);
         let peer_not_in_subnet = self.topology.get_addr(&peer_id).is_none();
         let active_connection_attempt = self.outbound_connecting.contains(&peer_id);
@@ -471,6 +470,7 @@ impl ConnectionManager {
             .client_config(peer_id, self.topology.latest_registry_version())
             .map_err(|cause| ConnectionEstablishError::TlsClientConfigError { peer_id, cause })
             .unwrap();
+        info!(self.log, "TLS config: {:?}", rustls_client_config);
         let transport_config = self.transport_config.clone();
         let conn_fut = async move {
             let quinn_client_config = QuicClientConfig::try_from(rustls_client_config).unwrap();
