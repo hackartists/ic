@@ -8224,6 +8224,7 @@ dependencies = [
  "http-body-util",
  "hyper 1.4.1",
  "hyper-util",
+ "ic-artifact-pool",
  "ic-async-utils",
  "ic-canister-client",
  "ic-canister-client-sender",

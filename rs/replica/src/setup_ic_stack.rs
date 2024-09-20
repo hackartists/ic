@@ -11,7 +11,8 @@ use ic_cycles_account_manager::CyclesAccountManager;
 use ic_execution_environment::ExecutionServices;
 use ic_https_outcalls_adapter_client::setup_canister_http_client;
 use ic_interfaces::{
-    execution_environment::QueryExecutionService, p2p::artifact_manager::JoinGuard,
+    execution_environment::QueryExecutionService,
+    p2p::{artifact_manager::JoinGuard, consensus::ValidatedPoolReader},
     time_source::SysTimeSource,
 };
 use ic_interfaces_certified_stream_store::CertifiedStreamStore;
@@ -345,7 +346,7 @@ pub fn construct_ic_stack(
         Arc::clone(&crypto) as Arc<_>,
         Arc::clone(&state_manager) as Arc<_>,
         Arc::clone(&state_manager) as Arc<_>,
-        consensus_pool,
+        consensus_pool.clone(),
         catch_up_package,
         Arc::new(state_sync),
         xnet_payload_builder,
@@ -381,6 +382,7 @@ pub fn construct_ic_stack(
         subnet_id,
         root_subnet_id,
         log.clone(),
+        consensus_pool,
         consensus_pool_cache,
         subnet_type,
         config.malicious_behaviour.malicious_flags,

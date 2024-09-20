@@ -16,6 +16,8 @@ mod read_state;
 mod status;
 mod tracing_flamegraph;
 
+use ic_artifact_pool::consensus_pool::ConsensusPoolImpl;
+
 cfg_if::cfg_if! {
     if #[cfg(feature = "fuzzing_code")] {
         pub mod call;
@@ -294,6 +296,7 @@ pub fn start_server(
     subnet_id: SubnetId,
     nns_subnet_id: SubnetId,
     log: ReplicaLogger,
+    consensus_pool: Arc<RwLock<ConsensusPoolImpl>>,
     consensus_pool_cache: Arc<dyn ConsensusPoolCache>,
     subnet_type: SubnetType,
     malicious_flags: MaliciousFlags,
@@ -374,7 +377,7 @@ pub fn start_server(
                 )),
         )
     };
-    let call_v4_router = call_v4::new_router(state_reader.clone());
+    let call_v4_router = call_v4::new_router(state_reader.clone(), consensus_pool.clone());
 
     let query_router = QueryServiceBuilder::builder(
         log.clone(),
