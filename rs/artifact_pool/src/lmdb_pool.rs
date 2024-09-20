@@ -9,7 +9,7 @@ use ic_interfaces::{
     },
     idkg::{IDkgPoolSection, IDkgPoolSectionOp, IDkgPoolSectionOps, MutableIDkgPoolSection},
 };
-use ic_logger::{error, info, ReplicaLogger};
+use ic_logger::{error, info, trace, ReplicaLogger};
 use ic_metrics::MetricsRegistry;
 use ic_protobuf::proxy::ProxyDecodeError;
 use ic_protobuf::types::v1 as pb;
@@ -553,6 +553,7 @@ impl<Artifact: PoolArtifact> PersistentHeightIndexedPool<Artifact> {
     where
         Artifact: PoolArtifact<ObjectType = PoolObject>,
     {
+        trace!(self.log, "Inserting artifact {:?}", key);
         self.tx_insert_prepare(tx, key)?;
         Artifact::save(&key.id_key, value, self.artifacts, tx, &self.log)
     }
@@ -805,6 +806,7 @@ where
 
     fn get_by_height(&self, h: Height) -> Box<dyn Iterator<Item = Message>> {
         let key = HeightKey::from(h);
+        trace!(self.log, "get_by_height key: {:?}", key);
         self.iterate(key, key)
     }
 
@@ -1152,6 +1154,7 @@ impl PersistentHeightIndexedPool<ConsensusMessage> {
                 PoolSectionOp::Insert(artifact) => {
                     let msg_id = artifact.msg.get_id();
                     let key = ArtifactKey::from(&msg_id);
+                    trace!(self.log, "Inserting {:?}", key);
                     // Ignore KeyExist
                     match self.tx_insert(&mut tx, &key, artifact) {
                         Err(lmdb::Error::KeyExist) => Ok(()),
@@ -1191,6 +1194,12 @@ impl PersistentHeightIndexedPool<ConsensusMessage> {
                         PurgeableArtifactType::FinalizationShare => TypeKey::FinalizationShare,
                         PurgeableArtifactType::EquivocationProof => TypeKey::EquivocationProof,
                     };
+                    trace!(
+                        self.log,
+                        "Purging type {:?} below {:?}",
+                        type_key,
+                        height_key,
+                    );
 
                     purged.extend(
                         self.tx_purge_type_below(&mut tx, type_key, height_key)?
@@ -1219,6 +1228,7 @@ impl crate::consensus_pool::MutablePoolSection<ValidatedConsensusArtifact>
         &mut self,
         ops: PoolSectionOps<ValidatedConsensusArtifact>,
     ) -> Vec<ConsensusMessageId> {
+        trace!(self.log, "ConsensusArtifact::mutate {:?}", ops);
         match self.tx_mutate(ops) {
             Ok(purged) => purged,
             err => {
@@ -1304,6 +1314,7 @@ impl PoolSection<ValidatedConsensusArtifact> for PersistentHeightIndexedPool<Con
     }
 
     fn notarization_share(&self) -> &dyn HeightIndexedPool<NotarizationShare> {
+        trace!(self.log, "ConsensusArtifact::notarization_share");
         self
     }
 

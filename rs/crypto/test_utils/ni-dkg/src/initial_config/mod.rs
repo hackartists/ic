@@ -81,6 +81,10 @@ impl InitialNiDkgConfig {
             registry_version,
             resharing_transcript: None,
         };
+        println!(
+            "InitialNiDkgConfig::new: dkg_config_data: {:?}",
+            dkg_config_data
+        );
         let dkg_config = NiDkgConfig::new(dkg_config_data)
             .expect("internal error: config invariant unexpectedly violated");
         Self { dkg_config }

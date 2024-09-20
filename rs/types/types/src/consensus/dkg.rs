@@ -534,7 +534,8 @@ impl NiDkgTag {
         let committee_size = get_committee_size(subnet_size);
         let f = crate::consensus::get_faults_tolerated(committee_size);
         match self {
-            NiDkgTag::LowThreshold => f + 1,
+            // NiDkgTag::LowThreshold => f + 1,
+            NiDkgTag::LowThreshold => 1,
             NiDkgTag::HighThreshold => committee_size - f,
         }
     }

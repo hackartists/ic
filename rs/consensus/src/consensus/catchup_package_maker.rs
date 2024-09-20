@@ -121,9 +121,22 @@ impl CatchUpPackageMaker {
         let current_cup_height = pool.get_catch_up_height();
         let mut block = pool.get_highest_summary_block();
 
+        trace!(
+            self.log,
+            "current_cup_height: {}, block.height: {}",
+            current_cup_height,
+            block.height()
+        );
+
         while block.height() > current_cup_height {
+            trace!(
+                self.log,
+                "considering block at height {} for CUP",
+                block.height()
+            );
             let result = self.consider_block(pool, block.clone());
             if result.is_some() {
+                trace!(self.log, "Made a CUP share at height {}", block.height());
                 // If we were able to generate a share, we simply return.
                 // Subsequent calls into the catch up package maker will only
                 // result in the creation of shares at earlier heights being, if

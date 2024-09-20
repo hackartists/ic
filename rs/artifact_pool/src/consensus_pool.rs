@@ -19,7 +19,7 @@ use ic_interfaces::{
     p2p::consensus::{ArtifactMutation, ChangeResult, MutablePool, ValidatedPoolReader},
     time_source::TimeSource,
 };
-use ic_logger::{warn, ReplicaLogger};
+use ic_logger::{trace, warn, ReplicaLogger};
 use ic_metrics::buckets::linear_buckets;
 use ic_protobuf::types::v1 as pb;
 use ic_types::crypto::CryptoHashOf;
@@ -521,10 +521,19 @@ impl ConsensusPoolImpl {
         &mut self,
         ops: PoolSectionOps<ValidatedConsensusArtifact>,
     ) -> Vec<ConsensusMessageId> {
+        trace!(self.log, "apply_changes_validated {:#?}", ops);
         if !ops.ops.is_empty() {
             let last_height = self.validated.pool_section().finalization().max_height();
             let purged = self.validated.mutate(ops);
             let new_height = self.validated.pool_section().finalization().max_height();
+            trace!(
+                self.log,
+                "apply_changes_validated: height: last({:?}), new({:?}) purged={:?} \n notarization size: {:?}",
+                last_height,
+                new_height,
+                purged.len(),
+                self.validated.pool_section().notarization_share().size()
+            );
 
             self.validated_metrics.update(self.validated.pool_section());
 
@@ -550,6 +559,7 @@ impl ConsensusPoolImpl {
         &mut self,
         ops: PoolSectionOps<UnvalidatedConsensusArtifact>,
     ) -> Vec<ConsensusMessageId> {
+        trace!(self.log, "apply_changes_unvalidated {:#?}", ops);
         if !ops.ops.is_empty() {
             let purged = self.unvalidated.mutate(ops);
             self.unvalidated_metrics
@@ -569,6 +579,7 @@ impl ConsensusPoolImpl {
         latest_finalization_height: Height,
         mut artifacts_for_backup: Vec<ConsensusMessage>,
     ) {
+        trace!(self.log, "backup_artifacts");
         // Find the highest finalization among the new artifacts
         let new_finalization = artifacts_for_backup
             .iter()
@@ -685,6 +696,11 @@ impl MutablePool<ConsensusMessage> for ConsensusPoolImpl {
     type ChangeSet = ChangeSet;
 
     fn insert(&mut self, unvalidated_artifact: UnvalidatedConsensusArtifact) {
+        trace!(
+            self.log,
+            "Inserting artifact: {:?}",
+            unvalidated_artifact.message
+        );
         let mut ops = PoolSectionOps::new();
         self.record_instant_unvalidated(&unvalidated_artifact.message);
         ops.insert(unvalidated_artifact);
@@ -692,12 +708,14 @@ impl MutablePool<ConsensusMessage> for ConsensusPoolImpl {
     }
 
     fn remove(&mut self, id: &ConsensusMessageId) {
+        trace!(self.log, "Removing artifact: {:?}", id);
         let mut ops = PoolSectionOps::new();
         ops.remove(id.clone());
         self.apply_changes_unvalidated(ops);
     }
 
     fn apply_changes(&mut self, change_set: ChangeSet) -> ChangeResult<ConsensusMessage> {
+        trace!(self.log, "Applying change set: {:?}", change_set);
         let changed = !change_set.is_empty();
         let updates = self.cache.prepare(&change_set);
         let mut unvalidated_ops = PoolSectionOps::new();
@@ -709,6 +727,7 @@ impl MutablePool<ConsensusMessage> for ConsensusPoolImpl {
         for change_action in change_set {
             match change_action {
                 ChangeAction::AddToValidated(to_add) => {
+                    trace!(self.log, "Adding to validated: {:?}", to_add.msg);
                     self.record_instant(&to_add);
                     mutations.push(ArtifactMutation::Insert(ArtifactWithOpt {
                         artifact: to_add.msg.clone(),
@@ -717,9 +736,15 @@ impl MutablePool<ConsensusMessage> for ConsensusPoolImpl {
                     validated_ops.insert(to_add);
                 }
                 ChangeAction::RemoveFromValidated(to_remove) => {
+                    trace!(
+                        self.log,
+                        "Removing from validated: {:?}",
+                        to_remove.get_id()
+                    );
                     validated_ops.remove(to_remove.get_id());
                 }
                 ChangeAction::MoveToValidated(to_move) => {
+                    trace!(self.log, "Moving to validated: {:?}", to_move);
                     if !to_move.is_share() {
                         mutations.push(ArtifactMutation::Insert(ArtifactWithOpt {
                             artifact: to_move.clone(),
@@ -739,22 +764,40 @@ impl MutablePool<ConsensusMessage> for ConsensusPoolImpl {
                     validated_ops.insert(validated);
                 }
                 ChangeAction::RemoveFromUnvalidated(to_remove) => {
+                    trace!(
+                        self.log,
+                        "Removing from unvalidated: {:?}",
+                        to_remove.get_id()
+                    );
                     unvalidated_ops.remove(to_remove.get_id());
                 }
                 ChangeAction::PurgeValidatedBelow(height) => {
+                    trace!(self.log, "Purging validated below: {:?}", height);
                     self.block_instants.clear(height);
                     self.message_instants.clear(height);
                     validated_ops.purge_below(height);
                 }
                 ChangeAction::PurgeValidatedOfTypeBelow(artifact_type, height) => {
+                    trace!(
+                        self.log,
+                        "Purging validated of type {:?} below: {:?}",
+                        artifact_type,
+                        height
+                    );
                     validated_ops.purge_type_below(artifact_type, height);
                 }
                 ChangeAction::PurgeUnvalidatedBelow(height) => {
+                    trace!(self.log, "Purging unvalidated below: {:?}", height);
                     self.block_instants.clear(height);
                     self.message_instants.clear(height);
                     unvalidated_ops.purge_below(height);
                 }
                 ChangeAction::HandleInvalid(to_remove, error_message) => {
+                    trace!(
+                        self.log,
+                        "Handling invalid artifact: {:?}",
+                        to_remove.get_id()
+                    );
                     self.invalidated_artifacts.inc();
                     warn!(
                         self.log,

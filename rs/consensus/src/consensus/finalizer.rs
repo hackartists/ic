@@ -82,6 +82,13 @@ impl Finalizer {
         let notarized_height = pool.get_notarized_height();
         let finalized_height = pool.get_finalized_height();
 
+        trace!(
+            self.log,
+            "notarized_height {:?} finalized_height {:?}",
+            notarized_height,
+            finalized_height
+        );
+
         let h = self.message_routing.expected_batch_height();
         if *self.prev_finalized_height.borrow() < finalized_height {
             debug!(
@@ -91,6 +98,7 @@ impl Finalizer {
             *self.prev_finalized_height.borrow_mut() = finalized_height;
         }
 
+        trace!(self.log, "deliver batches");
         // Try to deliver finalized batches to messaging
         let _ = deliver_batches(
             &*self.message_routing,

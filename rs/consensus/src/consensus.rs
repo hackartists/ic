@@ -392,8 +392,10 @@ impl<T: ConsensusPool> ChangeSetProducer<T> for ConsensusImpl {
     ///    The order of the rest subcomponents decides whom is given
     ///    a priority, but it should not affect liveness or correctness.
     fn on_state_change(&self, pool: &T) -> ChangeSet {
+        let request_id: u64 = rand::random();
+        println!("\n\n\n\n");
+        trace!(self.log, "{request_id} on_state_change");
         let pool_reader = PoolReader::new(pool);
-        trace!(self.log, "on_state_change");
 
         // Load new transcripts, remove outdated keys.
         self.dkg_key_manager
@@ -414,7 +416,6 @@ impl<T: ConsensusPool> ChangeSetProducer<T> for ConsensusImpl {
         // Log some information about the state of consensus
         // This is useful for testing purposes
         debug!(
-            every_n_seconds => 5,
             self.log,
             "Consensus finalized height: {}, state available: {}, DKG key material available: {}",
             pool_reader.get_finalized_height(),
@@ -423,59 +424,84 @@ impl<T: ConsensusPool> ChangeSetProducer<T> for ConsensusImpl {
             self.dkgs_available(&pool_reader)
         );
 
+        let notarized_height = pool_reader.get_notarized_height();
+        let finalized_height = pool_reader.get_finalized_height();
+
+        trace!(
+            self.log,
+            "notarized_height {:?} finalized_height {:?}",
+            notarized_height,
+            finalized_height
+        );
+
         let time_now = self.time_source.get_relative_time();
         let finalize = || {
             self.call_with_metrics(ConsensusSubcomponent::Finalizer, || {
-                add_all_to_validated(time_now, self.finalizer.on_state_change(&pool_reader))
+                let ret = self.finalizer.on_state_change(&pool_reader);
+                debug!(self.log, "{request_id} Finalizer invoked {:?}", ret);
+                add_all_to_validated(time_now, ret)
             })
         };
         let make_catch_up_package = || {
             self.call_with_metrics(ConsensusSubcomponent::CatchUpPackageMaker, || {
-                add_to_validated(
-                    time_now,
-                    self.catch_up_package_maker.on_state_change(&pool_reader),
-                )
+                let ret = self.catch_up_package_maker.on_state_change(&pool_reader);
+                debug!(
+                    self.log,
+                    "{request_id} CatchUpPackageMaker invoked {:?}", ret
+                );
+                add_to_validated(time_now, ret)
             })
         };
         let aggregate = || {
             self.call_with_metrics(ConsensusSubcomponent::Aggregator, || {
-                add_all_to_validated(time_now, self.aggregator.on_state_change(&pool_reader))
+                let ret = self.aggregator.on_state_change(&pool_reader);
+                debug!(self.log, "{request_id} Aggregator invoked {:?}", ret);
+                add_all_to_validated(time_now, ret)
             })
         };
         let notarize = || {
             self.call_with_metrics(ConsensusSubcomponent::Notary, || {
-                add_all_to_validated(time_now, self.notary.on_state_change(&pool_reader))
+                let ret = self.notary.on_state_change(&pool_reader);
+                debug!(self.log, "{request_id} Notary invoked {:?}", ret);
+                add_all_to_validated(time_now, ret)
             })
         };
         let make_random_beacon = || {
             self.call_with_metrics(ConsensusSubcomponent::RandomBeaconMaker, || {
-                add_to_validated(
-                    time_now,
-                    self.random_beacon_maker.on_state_change(&pool_reader),
-                )
+                let ret = self.random_beacon_maker.on_state_change(&pool_reader);
+                debug!(self.log, "{request_id} RandomBeaconMaker invoked {:?}", ret);
+
+                add_to_validated(time_now, ret)
             })
         };
         let make_random_tape = || {
             self.call_with_metrics(ConsensusSubcomponent::RandomTapeMaker, || {
-                add_all_to_validated(
-                    time_now,
-                    self.random_tape_maker.on_state_change(&pool_reader),
-                )
+                let ret = self.random_tape_maker.on_state_change(&pool_reader);
+                debug!(self.log, "{request_id} RandomTapeMaker invoked {:?}", ret);
+
+                add_all_to_validated(time_now, ret)
             })
         };
         let make_block = || {
             self.call_with_metrics(ConsensusSubcomponent::BlockMaker, || {
-                add_to_validated(time_now, self.block_maker.on_state_change(&pool_reader))
+                let ret = self.block_maker.on_state_change(&pool_reader);
+                debug!(self.log, "{request_id} BlockMaker invoked {:?}", ret);
+
+                add_to_validated(time_now, ret)
             })
         };
         let validate = || {
             self.call_with_metrics(ConsensusSubcomponent::Validator, || {
-                self.validator.on_state_change(&pool_reader)
+                let ret = self.validator.on_state_change(&pool_reader);
+                debug!(self.log, "{request_id} Validator invoked {:?}", ret);
+                ret
             })
         };
         let purge = || {
             self.call_with_metrics(ConsensusSubcomponent::Purger, || {
-                self.purger.on_state_change(&pool_reader)
+                let ret = self.purger.on_state_change(&pool_reader);
+                debug!(self.log, "{request_id} Purger invoked {:?}", ret);
+                ret
             })
         };
 
@@ -500,6 +526,7 @@ impl<T: ConsensusPool> ChangeSetProducer<T> for ConsensusImpl {
             self.replica_config.subnet_id,
             self.registry_client.get_latest_version(),
         ) {
+            debug!(self.log, "notary setting {:?}", settings);
             let unit_delay = settings.unit_delay;
             let current_time = self.time_source.get_relative_time();
             for (component, last_invoked_time) in self.last_invoked.borrow().iter() {
@@ -528,6 +555,11 @@ impl<T: ConsensusPool> ChangeSetProducer<T> for ConsensusImpl {
                 }
             }
         }
+
+        trace!(
+            self.log,
+            "ended on_state_change for {request_id} with {changeset:?}\n\n\n\n"
+        );
 
         #[cfg(feature = "malicious_code")]
         if self.malicious_flags.is_consensus_malicious() {

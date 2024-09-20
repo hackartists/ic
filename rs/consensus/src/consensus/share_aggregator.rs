@@ -9,7 +9,7 @@ use ic_consensus_utils::{
     registry_version_at_height,
 };
 use ic_interfaces::messaging::MessageRouting;
-use ic_logger::ReplicaLogger;
+use ic_logger::{trace, ReplicaLogger};
 use ic_types::{
     consensus::{
         CatchUpContent, ConsensusMessage, ConsensusMessageHashable, FinalizationContent, HasHeight,
@@ -102,6 +102,13 @@ impl ShareAggregator {
         let shares = pool.get_notarization_shares(height);
         let state_reader = pool.as_cache();
         let registry_version = registry_version_at_height(state_reader, height);
+        trace!(
+            self.log,
+            "Aggregating notarization shares at height {} registry version: {:?}",
+            height,
+            registry_version
+        );
+
         to_messages(aggregate(
             &self.log,
             self.membership.as_ref(),

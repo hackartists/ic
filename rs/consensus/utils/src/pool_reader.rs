@@ -4,7 +4,7 @@ use crate::{lookup_replica_version, registry_version_at_height};
 use ic_interfaces::batch_payload::PastPayload;
 use ic_interfaces::consensus_pool::*;
 use ic_interfaces_registry::RegistryClient;
-use ic_logger::ReplicaLogger;
+use ic_logger::{trace, ReplicaLogger};
 use ic_types::crypto::threshold_sig::ni_dkg::NiDkgDealing;
 use ic_types::{
     consensus::catchup::*, consensus::*, crypto::CryptoHashOf, replica_config::ReplicaConfig,
@@ -449,6 +449,19 @@ impl<'a> PoolReader<'a> {
         &self,
         h: Height,
     ) -> Box<dyn Iterator<Item = NotarizationShare>> {
+        let ns = self.pool.validated().notarization_share();
+        println!("Get notarization shares size {}", ns.size());
+        let all = ns.get_all();
+        println!(
+            "Get all notarization shares  {:?}",
+            all.into_iter().collect::<Vec<_>>(),
+        );
+
+        let ret = self.pool.validated().notarization_share().get_by_height(h);
+        println!(
+            "Get notarization shares by height {:?}",
+            ret.into_iter().collect::<Vec<_>>()
+        );
         self.pool.validated().notarization_share().get_by_height(h)
     }
 

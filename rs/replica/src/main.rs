@@ -94,7 +94,7 @@ fn main() -> io::Result<()> {
 
     // Async components usually spend most of their time awaiting for I/O operations.
     // Ideally async components are not CPU intensive so they should not need many OS threads.
-    let rt_worker_threads = std::cmp::max(num_cpus::get() / 4, 2);
+    let rt_worker_threads = 1; //std::cmp::max(num_cpus::get() / 4, 2);
 
     // The runtime is use for inter process communication - crypto, networking adapters, etc.
     let rt_main = tokio::runtime::Builder::new_multi_thread()

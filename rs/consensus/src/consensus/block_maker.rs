@@ -124,6 +124,16 @@ impl BlockMaker {
             .get_block_maker_rank(height, &beacon, my_node_id)
         {
             Ok(Some(rank)) => {
+                trace!(self.log,
+                       "this replica is elected as block maker this round rank: {:?}, already_proposed: {}, is better block: {}, is time to make: {}", rank.0, already_proposed(pool, height, my_node_id), self.is_better_block_proposal_available(pool, height, rank), is_time_to_make_block(
+                    &self.log,
+                    self.registry_client.as_ref(),
+                    self.replica_config.subnet_id,
+                    pool,
+                    height,
+                    rank,
+                    self.time_source.as_ref(),
+                ) );
                 if !already_proposed(pool, height, my_node_id)
                     && !self.is_better_block_proposal_available(pool, height, rank)
                     && is_time_to_make_block(
@@ -152,6 +162,10 @@ impl BlockMaker {
                 }
             }
             Ok(None) => {
+                debug!(
+                    self.log,
+                    "this replica is not elected as block maker this round"
+                );
                 // this replica is not elected as block maker this round
                 None
             }
@@ -406,6 +420,7 @@ impl BlockMaker {
         let block = Block::new(parent.get_hash().clone(), payload, height, rank, context);
         let hashed_block = hashed::Hashed::new(ic_types::crypto::crypto_hash, block);
         let metadata = BlockMetadata::from_block(&hashed_block, self.replica_config.subnet_id);
+        trace!(self.log, "Signing block proposal");
         match self
             .crypto
             .sign(&metadata, self.replica_config.node_id, registry_version)

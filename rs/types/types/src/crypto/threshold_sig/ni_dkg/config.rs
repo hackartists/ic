@@ -149,7 +149,7 @@ impl NiDkgConfig {
         let threshold = NiDkgThreshold::new(data.threshold)?;
         let dealers = NiDkgDealers::new(data.dealers)?;
         let receivers = NiDkgReceivers::new(data.receivers)?;
-        Self::ensure_sufficient_threshold(threshold, data.max_corrupt_receivers)?;
+        // Self::ensure_sufficient_threshold(threshold, data.max_corrupt_receivers)?;
         Self::ensure_sufficient_dealers(&dealers, data.max_corrupt_dealers)?;
         Self::ensure_sufficient_receivers(&receivers, data.max_corrupt_receivers, threshold)?;
         if let Some(rs_transcript) = &data.resharing_transcript {

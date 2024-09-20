@@ -45,6 +45,26 @@ impl RandomBeaconMaker {
         let beacon = pool.get_random_beacon(height)?;
         let next_height = height.increment();
         let next_beacon = pool.get_random_beacon(next_height);
+        trace!(
+            self.log,
+            "belong to threshold committee: {:?}, next beacon: {}, pool share: {}, next_height: {}",
+            self.membership.node_belongs_to_threshold_committee(
+                my_node_id,
+                next_height,
+                RandomBeacon::committee(),
+            ),
+            next_beacon.is_none(),
+            !pool.get_random_beacon_shares(next_height).any(|s| {
+                trace!(
+                    self.log,
+                    "share signer: {:?}, my node id: {}",
+                    s.signature.signer,
+                    my_node_id
+                );
+                s.signature.signer == my_node_id
+            }),
+            next_height,
+        );
         match self.membership.node_belongs_to_threshold_committee(
             my_node_id,
             next_height,
@@ -67,9 +87,10 @@ impl RandomBeaconMaker {
             Ok(is_beacon_maker)
                 if is_beacon_maker
                     && next_beacon.is_none()
-                    && !pool
-                        .get_random_beacon_shares(next_height)
-                        .any(|s| s.signature.signer == my_node_id) =>
+                    && !pool.get_random_beacon_shares(next_height).any(|s| {
+                        trace!(self.log, "share signer: {:?}", s.signature.signer);
+                        s.signature.signer == my_node_id
+                    }) =>
             {
                 let content =
                     RandomBeaconContent::new(next_height, ic_types::crypto::crypto_hash(&beacon));

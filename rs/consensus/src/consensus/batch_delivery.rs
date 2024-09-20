@@ -18,7 +18,7 @@ use ic_interfaces::{
     messaging::{MessageRouting, MessageRoutingError},
 };
 use ic_interfaces_registry::RegistryClient;
-use ic_logger::{debug, error, info, warn, ReplicaLogger};
+use ic_logger::{debug, error, info, trace, warn, ReplicaLogger};
 use ic_management_canister_types::SetupInitialDKGResponse;
 use ic_protobuf::{
     log::consensus_log_entry::v1::ConsensusLogEntry,
@@ -63,6 +63,13 @@ pub fn deliver_batches(
     let target_height = max_batch_height_to_deliver
         .unwrap_or(finalized_height)
         .min(finalized_height);
+
+    trace!(
+        log,
+        "Delivering batches from {} to {}",
+        message_routing.expected_batch_height(),
+        target_height
+    );
 
     let mut height = message_routing.expected_batch_height();
     if height == Height::from(0) {

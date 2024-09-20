@@ -8,7 +8,7 @@ use ic_interfaces::{
 };
 use ic_interfaces_registry::RegistryClient;
 use ic_interfaces_state_manager::StateManager;
-use ic_logger::{error, warn, ReplicaLogger};
+use ic_logger::{error, trace, warn, ReplicaLogger};
 use ic_protobuf::registry::subnet::v1::SubnetRecord;
 use ic_registry_client_helpers::subnet::{NotarizationDelaySettings, SubnetRegistry};
 use ic_replicated_state::ReplicatedState;
@@ -68,6 +68,12 @@ impl RoundRobin {
             result = calls[next]();
             next = (next + 1) % calls.len();
             if !result.is_empty() || *index == next {
+                println!(
+                    "RoundRobin: call_next: index={:?}, next={}, result.len()={}",
+                    *index,
+                    next,
+                    result.len()
+                );
                 break;
             };
         }
@@ -373,6 +379,7 @@ pub fn aggregate<
     group_shares(artifact_shares)
         .into_iter()
         .filter_map(|(content_ref, shares)| {
+            trace!(log, "aggregate: content_ref={:?}", content_ref,);
             let selector = selector(&content_ref).or_else(|| {
                 warn!(
                     log,
@@ -389,7 +396,13 @@ pub fn aggregate<
                     return None;
                 }
             };
+            trace!(log, "aggregate: threshold={:?}", threshold,);
             if shares.len() < threshold {
+                trace!(
+                    log,
+                    "aggregate: not enough shares to construct a full signature for content {:?}",
+                    content_ref
+                );
                 return None;
             }
             let shares_ref = shares.iter().collect();
