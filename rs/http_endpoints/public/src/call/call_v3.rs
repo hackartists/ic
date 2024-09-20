@@ -58,7 +58,6 @@ pub(crate) enum CallV3Response {
 }
 
 #[derive(Clone)]
-
 struct SynchronousCallHandlerState {
     ingress_watcher_handle: IngressWatcherHandle,
     delegation_from_nns: Arc<RwLock<Option<CertificateDelegation>>>,

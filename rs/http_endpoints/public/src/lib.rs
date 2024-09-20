@@ -24,7 +24,9 @@ cfg_if::cfg_if! {
     }
 }
 
-pub use call::{call_v2, call_v3, IngressValidatorBuilder, IngressWatcher, IngressWatcherHandle};
+pub use call::{
+    call_v2, call_v3, call_v4, IngressValidatorBuilder, IngressWatcher, IngressWatcherHandle,
+};
 pub use common::cors_layer;
 pub use query::QueryServiceBuilder;
 pub use read_state::canister::{CanisterReadStateService, CanisterReadStateServiceBuilder};
@@ -144,6 +146,7 @@ pub struct HttpError {
 struct HttpHandler {
     call_router: Router,
     call_v3_router: Router,
+    call_v4_router: Router,
     query_router: Router,
     catchup_router: Router,
     dashboard_router: Router,
@@ -371,6 +374,7 @@ pub fn start_server(
                 )),
         )
     };
+    let call_v4_router = call_v4::new_router(state_reader.clone());
 
     let query_router = QueryServiceBuilder::builder(
         log.clone(),
@@ -442,6 +446,7 @@ pub fn start_server(
     let http_handler = HttpHandler {
         call_router,
         call_v3_router,
+        call_v4_router,
         query_router,
         status_router,
         catchup_router,
@@ -632,6 +637,7 @@ fn make_router(
             ),
         )
         .merge(http_handler.call_v3_router)
+        .merge(http_handler.call_v4_router)
         .merge(
             http_handler.query_router.layer(
                 ServiceBuilder::new()
@@ -1142,6 +1148,7 @@ mod tests {
         let http_handler = HttpHandler {
             call_router: Router::new().route(call_v2::route(), axum::routing::post(dummy)),
             call_v3_router: Router::new().route(call_v3::route(), axum::routing::post(dummy)),
+            call_v4_router: Router::new().route(call_v4::route(), axum::routing::post(dummy)),
             query_router: Router::new()
                 .route(QueryService::route(), axum::routing::post(dummy_cbor)),
             catchup_router: Router::new().route(
