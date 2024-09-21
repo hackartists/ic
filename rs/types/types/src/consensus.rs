@@ -1269,14 +1269,14 @@ pub type Threshold = usize;
 /// subnet
 pub fn get_committee_size(nodes_on_subnet: usize) -> usize {
     let f = get_faults_tolerated(nodes_on_subnet);
-    // 3 * f + 1
-    f + 1
+    3 * f + 1
+    // f + 1
 }
 
 /// Returns the upper limit of faulty participants for `n` participants.
 pub fn get_faults_tolerated(n: usize) -> usize {
-    // (n.max(1) - 1) / 3
-    n.max(1) - 1
+    (n.max(1) - 1) / 3
+    // n.max(1) - 1
 }
 
 impl From<&Block> for pb::Block {

@@ -268,8 +268,8 @@ impl PoolMetrics {
 
 pub struct ConsensusPoolImpl {
     node_id: NodeId,
-    validated: Box<dyn InitializablePoolSection + Send + Sync>,
-    unvalidated: Box<dyn MutablePoolSection<UnvalidatedConsensusArtifact> + Send + Sync>,
+    pub validated: Box<dyn InitializablePoolSection + Send + Sync>,
+    pub unvalidated: Box<dyn MutablePoolSection<UnvalidatedConsensusArtifact> + Send + Sync>,
     validated_metrics: PoolMetrics,
     unvalidated_metrics: PoolMetrics,
     invalidated_artifacts: IntCounter,
@@ -292,7 +292,7 @@ pub struct ConsensusPoolImpl {
 // A temporary pool implementation used for genesis initialization.
 pub struct UncachedConsensusPoolImpl {
     pub validated: Box<dyn InitializablePoolSection + Send + Sync>,
-    unvalidated: Box<dyn MutablePoolSection<UnvalidatedConsensusArtifact> + Send + Sync>,
+    pub unvalidated: Box<dyn MutablePoolSection<UnvalidatedConsensusArtifact> + Send + Sync>,
 }
 
 impl UncachedConsensusPoolImpl {
@@ -449,6 +449,31 @@ impl ConsensusPoolImpl {
         pool.unvalidated_metrics
             .update(pool.unvalidated.pool_section());
         pool
+    }
+
+    fn finalized_block(&self) -> Block {
+        get_highest_finalized_block(self, &self.catch_up_package())
+    }
+
+    fn catch_up_package(&self) -> CatchUpPackage {
+        self.validated.pool_section().highest_catch_up_package()
+    }
+
+    fn summary_block(&self) -> Block {
+        let finalized_block = get_highest_finalized_block(self, &self.catch_up_package());
+        let mut summary_block = self.catch_up_package().content.block.into_inner();
+        update_summary_block(self, &mut summary_block, &finalized_block);
+        summary_block
+    }
+
+    pub fn finalized_chain(&self) -> Arc<dyn ConsensusBlockChain> {
+        let summary_block = self.summary_block();
+        let finalized_tip = self.finalized_block();
+        Arc::new(ConsensusBlockChainImpl::new(
+            self,
+            &summary_block,
+            &finalized_tip,
+        ))
     }
 
     fn init_genesis(

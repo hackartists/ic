@@ -1,13 +1,22 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    borrow::Borrow,
+    sync::{Arc, RwLock},
+};
 
 use axum::{
     extract::{DefaultBodyLimit, Path, State},
     Json, Router,
 };
-use ic_artifact_pool::consensus_pool::ConsensusPoolImpl;
+use ic_artifact_pool::consensus_pool::{ConsensusPoolImpl, UncachedConsensusPoolImpl};
+use ic_config::artifact_pool::ArtifactPoolConfig;
+use ic_interfaces::consensus_pool::ConsensusBlockCache;
 use ic_interfaces_state_manager::StateReader;
 use ic_replicated_state::{CanisterState, ReplicatedState};
-use ic_types::{CanisterId, Height};
+use ic_types::{
+    consensus::{Block, HashedBlock},
+    crypto::{crypto_hash, CryptoHash, CryptoHashOf},
+    CanisterId, Height,
+};
 use serde::Serialize;
 use tower::ServiceBuilder;
 
@@ -28,8 +37,8 @@ pub(crate) fn new_router(
         )
         .route_service(
             "/api/v4/state/:height",
-            axum::routing::get(get_state_at)
-                .with_state(state_reader.clone())
+            axum::routing::get(get_block_at)
+                .with_state(consensus_pool.clone())
                 .layer(ServiceBuilder::new().layer(DefaultBodyLimit::disable())),
         )
     // .route_service(
@@ -54,53 +63,59 @@ async fn get_height(
 }
 
 #[derive(Serialize)]
-struct GetState {
-    prev_hash: String,
-    height: u64,
-    canister_states: Vec<CanisterStateItem>,
+#[serde(untagged)]
+enum CallResponse {
+    Block(GetBlock),
+    Err(Error),
 }
 
 #[derive(Serialize)]
-struct CanisterStateItem {
-    canister_id: String,
-    state: String,
+struct Error {
+    message: String,
 }
 
-async fn get_state_at(
-    Path(height): Path<u64>,
-    State(state): State<Arc<dyn StateReader<State = ReplicatedState>>>,
-) -> Json<GetState> {
-    let height = Height::new(height);
-    let state = state
-        .get_state_at(height)
-        .expect("Failed to get state at height.");
-    let height = state.height().get();
-    let state = state.get_ref();
-    let prev_hash = match height {
-        0 => "genesis".to_string(),
-        _ => format!(
-            "{:?}",
-            state
-                .system_metadata()
-                .prev_state_hash
-                .clone()
-                .expect("Failed to get prev hash")
-        ),
-    };
-    let canister_states = state
-        .canister_states
-        .iter()
-        .map(|(canister_id, canister_state)| CanisterStateItem {
-            canister_id: canister_id.get().to_string(),
-            state: format!("{:?}", canister_state),
-        })
-        .collect();
+#[derive(Serialize)]
+struct GetBlock {
+    prev_hash: String,
+    height: u64,
+    block_hash: String,
+}
 
-    Json(GetState {
-        prev_hash,
-        height,
-        canister_states,
-    })
+impl From<&Block> for GetBlock {
+    fn from(block: &Block) -> Self {
+        let prev_hash = format!("0x{}", hex::encode(block.clone().parent.get().0));
+        let height = block.clone().height.get();
+
+        let block_hash = HashedBlock::new(crypto_hash, block.clone());
+        let block_hash = format!("0x{}", hex::encode(block_hash.get_hash().clone().get().0));
+        Self {
+            prev_hash,
+            height,
+            block_hash,
+        }
+    }
+}
+
+async fn get_block_at(
+    Path(height): Path<u64>,
+    State(consensus_pool): State<Arc<RwLock<ConsensusPoolImpl>>>,
+) -> Json<CallResponse> {
+    let pool = consensus_pool
+        .read()
+        .expect("Failed to read consensus pool");
+
+    let height = Height::new(height);
+    let chain = pool.finalized_chain();
+    let block = match chain.get_block_by_height(height) {
+        Ok(block) => GetBlock::from(block),
+        Err(_) => {
+            return Json(CallResponse::Err(Error {
+                message: "block not found".to_string(),
+            }))
+        }
+    };
+
+    Json(CallResponse::Block(block))
 }
 
 // async fn get_state_at(
