@@ -4,7 +4,7 @@ use std::{
 };
 
 use axum::{
-    extract::{DefaultBodyLimit, Path, State},
+    extract::{DefaultBodyLimit, Path, Query, State},
     Json, Router,
 };
 use ic_artifact_pool::consensus_pool::{ConsensusPoolImpl, UncachedConsensusPoolImpl};
@@ -17,7 +17,7 @@ use ic_types::{
     crypto::{crypto_hash, CryptoHash, CryptoHashOf},
     CanisterId, Height,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tower::ServiceBuilder;
 
 pub(crate) fn route() -> &'static str {
@@ -36,17 +36,17 @@ pub(crate) fn new_router(
                 .layer(ServiceBuilder::new().layer(DefaultBodyLimit::disable())),
         )
         .route_service(
-            "/api/v4/state/:height",
+            "/api/v4/block/:height",
             axum::routing::get(get_block_at)
                 .with_state(consensus_pool.clone())
                 .layer(ServiceBuilder::new().layer(DefaultBodyLimit::disable())),
         )
-    // .route_service(
-    //     "/api/v4/pool/:height",
-    //     axum::routing::get(get_state_at)
-    //         .with_state(consensus_pool)
-    //         .layer(ServiceBuilder::new().layer(DefaultBodyLimit::disable())),
-    // )
+        .route_service(
+            "/api/v4/blocks",
+            axum::routing::get(list_blocks)
+                .with_state(consensus_pool.clone())
+                .layer(ServiceBuilder::new().layer(DefaultBodyLimit::disable())),
+        )
 }
 
 #[derive(Serialize)]
@@ -66,6 +66,7 @@ async fn get_height(
 #[serde(untagged)]
 enum CallResponse {
     Block(GetBlock),
+    Blocks(Vec<GetBlock>),
     Err(Error),
 }
 
@@ -79,6 +80,21 @@ struct GetBlock {
     prev_hash: String,
     height: u64,
     block_hash: String,
+    ingress_messages: Option<Vec<IngressMessage>>,
+}
+
+#[derive(Serialize)]
+struct IngressMessage {
+    message_id: String,
+    canister_id: CanisterId,
+    method_name: String,
+    sender: String,
+}
+
+impl GetBlock {
+    pub fn set_ingress_messages(&mut self, messages: Vec<IngressMessage>) {
+        self.ingress_messages = Some(messages);
+    }
 }
 
 impl From<&Block> for GetBlock {
@@ -92,8 +108,76 @@ impl From<&Block> for GetBlock {
             prev_hash,
             height,
             block_hash,
+            ingress_messages: None,
         }
     }
+}
+
+#[derive(Deserialize)]
+struct BlockRange {
+    from: u64,
+    to: u64,
+}
+
+async fn list_blocks(
+    range: Query<BlockRange>,
+    State(consensus_pool): State<Arc<RwLock<ConsensusPoolImpl>>>,
+) -> Json<CallResponse> {
+    let pool = consensus_pool
+        .read()
+        .expect("Failed to read consensus pool");
+
+    let chain = pool.finalized_chain();
+    let mut blocks = vec![];
+
+    for height in range.from..range.to {
+        let height = Height::new(height);
+        let block = match chain.get_block_by_height(height) {
+            Ok(block) => {
+                let messages = if block.payload.is_summary() {
+                    None
+                } else {
+                    let batch = &block.payload.as_ref().as_data().batch;
+                    let mut ingress_messages = vec![];
+                    let count = batch.ingress.message_count();
+
+                    for i in 0..count {
+                        let (message_id, message) = batch.ingress.get(i).unwrap();
+                        let tx_id = format!("0x{}", message_id.message_id);
+                        let tx_content = message.as_ref().content();
+                        let canister_id = tx_content.canister_id();
+                        let method_name = tx_content.method_name();
+                        let sender = tx_content.sender().get().0.to_text();
+
+                        ingress_messages.push(IngressMessage {
+                            message_id: tx_id,
+                            canister_id,
+                            method_name: method_name.to_string(),
+                            sender,
+                        });
+                    }
+
+                    Some(ingress_messages)
+                };
+
+                let mut block = GetBlock::from(block);
+                if let Some(messages) = messages {
+                    block.set_ingress_messages(messages);
+                }
+
+                block
+            }
+            Err(_) => {
+                return Json(CallResponse::Err(Error {
+                    message: "block not found".to_string(),
+                }));
+            }
+        };
+
+        blocks.push(block);
+    }
+
+    Json(CallResponse::Blocks(blocks))
 }
 
 async fn get_block_at(
@@ -107,7 +191,40 @@ async fn get_block_at(
     let height = Height::new(height);
     let chain = pool.finalized_chain();
     let block = match chain.get_block_by_height(height) {
-        Ok(block) => GetBlock::from(block),
+        Ok(block) => {
+            let messages = if block.payload.is_summary() {
+                None
+            } else {
+                let batch = &block.payload.as_ref().as_data().batch;
+                let mut ingress_messages = vec![];
+                let count = batch.ingress.message_count();
+
+                for i in 0..count {
+                    let (message_id, message) = batch.ingress.get(i).unwrap();
+                    let tx_id = format!("0x{}", message_id.message_id);
+                    let tx_content = message.as_ref().content();
+                    let canister_id = tx_content.canister_id();
+                    let method_name = tx_content.method_name();
+                    let sender = tx_content.sender().get().0.to_text();
+
+                    ingress_messages.push(IngressMessage {
+                        message_id: tx_id,
+                        canister_id,
+                        method_name: method_name.to_string(),
+                        sender,
+                    });
+                }
+
+                Some(ingress_messages)
+            };
+
+            let mut block = GetBlock::from(block);
+            if let Some(messages) = messages {
+                block.set_ingress_messages(messages);
+            }
+
+            block
+        }
         Err(_) => {
             return Json(CallResponse::Err(Error {
                 message: "block not found".to_string(),
