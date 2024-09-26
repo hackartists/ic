@@ -146,6 +146,12 @@ async fn list_blocks(
             .block_proposal()
             .get_by_height(finalization.height())
         {
+            if proposal.content.get_hash() == block_hash {
+                block = Some(proposal.content.clone().into_inner());
+            } else {
+                continue;
+            }
+
             let blk: Block = proposal.content.clone().into_inner();
 
             if !blk.payload.is_summary() {
@@ -168,10 +174,6 @@ async fn list_blocks(
                     });
                 }
             };
-
-            if proposal.content.get_hash() == block_hash {
-                block = Some(proposal.content.clone().into_inner());
-            }
         }
 
         if block.is_none() {
