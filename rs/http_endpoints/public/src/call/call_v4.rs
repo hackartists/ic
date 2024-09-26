@@ -1,20 +1,20 @@
 use std::{
-    borrow::Borrow,
     sync::{Arc, RwLock},
+    thread::sleep,
+    time::Duration,
 };
 
 use axum::{
     extract::{DefaultBodyLimit, Path, Query, State},
     Json, Router,
 };
-use ic_artifact_pool::consensus_pool::{ConsensusPoolImpl, UncachedConsensusPoolImpl};
-use ic_config::artifact_pool::ArtifactPoolConfig;
-use ic_interfaces::consensus_pool::{ConsensusBlockCache, HeightRange};
+use ic_artifact_pool::consensus_pool::ConsensusPoolImpl;
+use ic_interfaces::consensus_pool::HeightRange;
 use ic_interfaces_state_manager::StateReader;
-use ic_replicated_state::{CanisterState, ReplicatedState};
+use ic_replicated_state::ReplicatedState;
 use ic_types::{
     consensus::{Block, HasHeight, HashedBlock},
-    crypto::{crypto_hash, CryptoHash, CryptoHashOf},
+    crypto::crypto_hash,
     CanisterId, Height,
 };
 use serde::{Deserialize, Serialize};
@@ -139,14 +139,38 @@ async fn list_blocks(
     for finalization in finalizations {
         let block_hash = &finalization.content.block;
         let mut block = None;
+        let mut ingress_messages = vec![];
 
         for proposal in pool
             .validated
             .block_proposal()
             .get_by_height(finalization.height())
         {
+            let blk: Block = proposal.content.clone().into_inner();
+
+            if !blk.payload.is_summary() {
+                let batch = &blk.payload.as_ref().as_data().batch;
+                let count = batch.ingress.message_count();
+
+                for i in 0..count {
+                    let (message_id, message) = batch.ingress.get(i).unwrap();
+                    let tx_id = format!("0x{}", message_id.message_id);
+                    let tx_content = message.as_ref().content();
+                    let canister_id = tx_content.canister_id();
+                    let method_name = tx_content.method_name();
+                    let sender = tx_content.sender().get().0.to_text();
+
+                    ingress_messages.push(IngressMessage {
+                        message_id: tx_id,
+                        canister_id,
+                        method_name: method_name.to_string(),
+                        sender,
+                    });
+                }
+            };
+
             if proposal.content.get_hash() == block_hash {
-                block = Some(proposal.content.into_inner());
+                block = Some(proposal.content.clone().into_inner());
             }
         }
 
@@ -161,35 +185,9 @@ async fn list_blocks(
         }
         let block = block.unwrap();
 
-        let messages = if block.payload.is_summary() {
-            None
-        } else {
-            let batch = &block.payload.as_ref().as_data().batch;
-            let mut ingress_messages = vec![];
-            let count = batch.ingress.message_count();
-
-            for i in 0..count {
-                let (message_id, message) = batch.ingress.get(i).unwrap();
-                let tx_id = format!("0x{}", message_id.message_id);
-                let tx_content = message.as_ref().content();
-                let canister_id = tx_content.canister_id();
-                let method_name = tx_content.method_name();
-                let sender = tx_content.sender().get().0.to_text();
-
-                ingress_messages.push(IngressMessage {
-                    message_id: tx_id,
-                    canister_id,
-                    method_name: method_name.to_string(),
-                    sender,
-                });
-            }
-
-            Some(ingress_messages)
-        };
-
         let mut block = GetBlock::from(&block);
-        if let Some(messages) = messages {
-            block.set_ingress_messages(messages);
+        if ingress_messages.len() > 0 {
+            block.set_ingress_messages(ingress_messages);
         }
 
         blocks.push(block);
