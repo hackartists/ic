@@ -9,11 +9,11 @@ use axum::{
 };
 use ic_artifact_pool::consensus_pool::{ConsensusPoolImpl, UncachedConsensusPoolImpl};
 use ic_config::artifact_pool::ArtifactPoolConfig;
-use ic_interfaces::consensus_pool::ConsensusBlockCache;
+use ic_interfaces::consensus_pool::{ConsensusBlockCache, HeightRange};
 use ic_interfaces_state_manager::StateReader;
 use ic_replicated_state::{CanisterState, ReplicatedState};
 use ic_types::{
-    consensus::{Block, HashedBlock},
+    consensus::{Block, HasHeight, HashedBlock},
     crypto::{crypto_hash, CryptoHash, CryptoHashOf},
     CanisterId, Height,
 };
@@ -127,52 +127,70 @@ async fn list_blocks(
         .read()
         .expect("Failed to read consensus pool");
 
-    let chain = pool.finalized_chain();
+    let finalizations = pool
+        .validated
+        .finalization()
+        .get_by_height_range(HeightRange {
+            min: Height::new(range.from),
+            max: Height::new(range.to),
+        });
     let mut blocks = vec![];
 
-    for height in range.from..range.to {
-        let height = Height::new(height);
-        let block = match chain.get_block_by_height(height) {
-            Ok(block) => {
-                let messages = if block.payload.is_summary() {
-                    None
-                } else {
-                    let batch = &block.payload.as_ref().as_data().batch;
-                    let mut ingress_messages = vec![];
-                    let count = batch.ingress.message_count();
+    for finalization in finalizations {
+        let block_hash = &finalization.content.block;
+        let mut block = None;
 
-                    for i in 0..count {
-                        let (message_id, message) = batch.ingress.get(i).unwrap();
-                        let tx_id = format!("0x{}", message_id.message_id);
-                        let tx_content = message.as_ref().content();
-                        let canister_id = tx_content.canister_id();
-                        let method_name = tx_content.method_name();
-                        let sender = tx_content.sender().get().0.to_text();
-
-                        ingress_messages.push(IngressMessage {
-                            message_id: tx_id,
-                            canister_id,
-                            method_name: method_name.to_string(),
-                            sender,
-                        });
-                    }
-
-                    Some(ingress_messages)
-                };
-
-                let mut block = GetBlock::from(block);
-                if let Some(messages) = messages {
-                    block.set_ingress_messages(messages);
-                }
-
-                block
+        for proposal in pool
+            .validated
+            .block_proposal()
+            .get_by_height(finalization.height())
+        {
+            if proposal.content.get_hash() == block_hash {
+                block = Some(proposal.content.into_inner());
             }
-            Err(_) => {
-                return Json(CallResponse::Err(Error {
-                    message: "block not found".to_string(),
-                }));
+        }
+
+        if block.is_none() {
+            return Json(CallResponse::Err(Error {
+                message: format!(
+                    "{} block not found: {:?}",
+                    finalization.height().get(),
+                    block_hash
+                ),
+            }));
+        }
+        let block = block.unwrap();
+
+        let messages = if block.payload.is_summary() {
+            None
+        } else {
+            let batch = &block.payload.as_ref().as_data().batch;
+            let mut ingress_messages = vec![];
+            let count = batch.ingress.message_count();
+
+            for i in 0..count {
+                let (message_id, message) = batch.ingress.get(i).unwrap();
+                let tx_id = format!("0x{}", message_id.message_id);
+                let tx_content = message.as_ref().content();
+                let canister_id = tx_content.canister_id();
+                let method_name = tx_content.method_name();
+                let sender = tx_content.sender().get().0.to_text();
+
+                ingress_messages.push(IngressMessage {
+                    message_id: tx_id,
+                    canister_id,
+                    method_name: method_name.to_string(),
+                    sender,
+                });
             }
+
+            Some(ingress_messages)
         };
+
+        let mut block = GetBlock::from(&block);
+        if let Some(messages) = messages {
+            block.set_ingress_messages(messages);
+        }
 
         blocks.push(block);
     }
