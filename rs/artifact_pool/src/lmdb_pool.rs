@@ -86,7 +86,7 @@ use strum::{AsRefStr, FromRepr, IntoEnumIterator};
 /// | TypeKey | Meta |
 /// ------------------
 /// ```
-pub(crate) struct PersistentHeightIndexedPool<T> {
+pub struct PersistentHeightIndexedPool<T> {
     pool_type: PhantomData<T>,
     db_env: Arc<Environment>,
     meta: Database,
@@ -1137,6 +1137,7 @@ impl PersistentHeightIndexedPool<ConsensusMessage> {
         read_only: bool,
         log: ReplicaLogger,
     ) -> PersistentHeightIndexedPool<ConsensusMessage> {
+        info!(log, "Creating consensus pool {config:?}, {read_only:?}");
         let mut path = config.persistent_pool_validated_persistent_db_path;
         path.push("consensus");
         std::fs::create_dir_all(path.as_path()).ok();

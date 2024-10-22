@@ -14,7 +14,7 @@ mod test_utils;
 
 pub mod backup;
 mod lmdb_iterator;
-mod lmdb_pool;
+pub mod lmdb_pool;
 
 // On macOS we have support for rocksdb in addition to lmdb as lmdb
 // historically caused issues.
