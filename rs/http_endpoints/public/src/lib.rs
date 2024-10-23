@@ -30,6 +30,7 @@ pub use call::{
     call_v2, call_v3, call_v4, IngressValidatorBuilder, IngressWatcher, IngressWatcherHandle,
 };
 pub use common::cors_layer;
+use ic_config::artifact_pool::ArtifactPoolConfig;
 pub use query::QueryServiceBuilder;
 pub use read_state::canister::{CanisterReadStateService, CanisterReadStateServiceBuilder};
 pub use read_state::subnet::SubnetReadStateServiceBuilder;
@@ -306,6 +307,7 @@ pub fn start_server(
     certified_height_watcher: watch::Receiver<Height>,
     completed_execution_messages_rx: Receiver<(MessageId, Height)>,
     enable_synchronous_call_handler_for_v3_endpoint: bool,
+    artfact_pool_config: ic_config::artifact_pool::PersistentPoolBackend,
 ) {
     let listen_addr = config.listen_addr;
     info!(log, "Starting HTTP server...");
@@ -377,7 +379,11 @@ pub fn start_server(
                 )),
         )
     };
-    let call_v4_router = call_v4::new_router(state_reader.clone(), consensus_pool.clone());
+    let call_v4_router = call_v4::new_router(
+        state_reader.clone(),
+        consensus_pool.clone(),
+        artfact_pool_config.clone(),
+    );
 
     let query_router = QueryServiceBuilder::builder(
         log.clone(),

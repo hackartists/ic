@@ -392,6 +392,9 @@ pub fn construct_ic_stack(
         max_certified_height_rx,
         finalized_ingress_height_rx,
         subnet_is_whitelisted_for_synchronous_call_v3(&subnet_id),
+        ArtifactPoolConfig::from(config.artifact_pool.clone())
+            .persistent_pool_backend
+            .clone(),
     );
 
     Ok((

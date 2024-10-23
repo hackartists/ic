@@ -60,6 +60,8 @@ tower-http = { workspace = true }
 tracing-flame = "0.2.0"
 tracing-subscriber = { workspace = true }
 ic-artifact-pool = { path = "../../artifact_pool" }
+lmdb-rkv = { git = "https://github.com/dfinity-lab/lmdb-rs", rev = "f62018b2deb79ea0d53914d5502389433fc3e6da" }
+bincode = { workspace = true }
 
 [dev-dependencies]
 ic-canister-client = { path = "../../canister_client" }

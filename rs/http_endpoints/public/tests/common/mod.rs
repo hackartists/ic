@@ -498,6 +498,7 @@ impl HttpEndpointBuilder {
             certified_height_watcher_rx,
             terminal_state_ingress_messages_rx,
             true,
+            None,
         );
 
         HttpEndpointHandles {

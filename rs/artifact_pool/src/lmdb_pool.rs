@@ -88,11 +88,11 @@ use strum::{AsRefStr, FromRepr, IntoEnumIterator};
 /// ```
 pub struct PersistentHeightIndexedPool<T> {
     pool_type: PhantomData<T>,
-    db_env: Arc<Environment>,
+    pub db_env: Arc<Environment>,
     meta: Database,
-    artifacts: Database,
+    pub artifacts: Database,
     indices: Vec<(TypeKey, Database)>,
-    log: ReplicaLogger,
+    pub log: ReplicaLogger,
 }
 
 /// A trait for loading/saving pool artifacts (of ArtifactKind). It allows a
@@ -146,7 +146,7 @@ pub(crate) trait PoolArtifact: Sized {
 /// A unique representation for each type of supported message.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, AsRefStr, FromRepr)]
 #[repr(u8)]
-pub(crate) enum TypeKey {
+pub enum TypeKey {
     // Consensus messages
     RandomBeacon,
     Finalization,
@@ -235,7 +235,7 @@ impl From<&CertificationMessageId> for TypeKey {
 /// Message id as Key. The first 8 bytes is the big-endian representation
 /// of the height, and the rest is hash.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub(crate) struct IdKey(Vec<u8>);
+pub struct IdKey(Vec<u8>);
 
 const HEIGHT_OFFSET: usize = 0;
 const TYPE_OFFSET: usize = 8;
@@ -252,7 +252,7 @@ impl Debug for IdKey {
 }
 
 impl IdKey {
-    fn new(height: Height, type_key: TypeKey, hash: &CryptoHash) -> Self {
+    pub fn new(height: Height, type_key: TypeKey, hash: &CryptoHash) -> Self {
         let hash_bytes = &hash.0;
         let len = hash_bytes.len() + 8 + 1;
         let mut bytes: Vec<u8> = vec![0; len];
